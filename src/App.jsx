@@ -5,7 +5,7 @@ import AttendanceCalendarPage from './pages/AttendanceCalendarPage'
 
 function App() {
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/attendance_logger">
       <div className="app-shell">
         <main className="content">
           <Routes>
