@@ -1,0 +1,199 @@
+import { useEffect, useMemo, useState } from 'react'
+import { useParams } from 'react-router-dom'
+import { getPersonById, readPeople, saveAttendance, writePeople } from '../data/storage'
+
+const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+
+function getMonthWorkingDays(date) {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  let workingDays = 0
+
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const current = new Date(year, month, day)
+    const weekday = current.getDay()
+    workingDays += 1
+  }
+  return workingDays
+}
+
+function estimateSalary(person, viewDate) {
+  const monthlySalary = Number(person?.salary || 0)
+  const allowedLeaves = Number(person?.allowedLeavesPerMonth || 0)
+  const workingDays = getMonthWorkingDays(viewDate)
+  const attendance = person?.attendance || {}
+  const monthPrefix = viewDate.toISOString().slice(0, 7)
+
+  let absentDays = 0
+  Object.keys(attendance).forEach((key) => {
+    if (key.startsWith(monthPrefix) && attendance[key] === 'Absent') {
+      const date = new Date(key)
+      const weekday = date.getDay()
+      absentDays += 1
+    }
+  })
+
+  const unpaidAbsentDays = Math.max(0, absentDays - allowedLeaves)
+  const payableDays = Math.max(0, workingDays - unpaidAbsentDays)
+  const salary = workingDays > 0 ? Math.round((monthlySalary * payableDays) / workingDays) : 0
+
+  return {
+    monthlySalary,
+    allowedLeaves,
+    workingDays,
+    absentDays,
+    unpaidAbsentDays,
+    payableDays,
+    estimate: salary,
+  }
+}
+
+function sameDate(left, right) {
+  return (
+    left.getFullYear() === right.getFullYear() &&
+    left.getMonth() === right.getMonth() &&
+    left.getDate() === right.getDate()
+  )
+}
+
+function buildCalendarDays(viewDate) {
+  const year = viewDate.getFullYear()
+  const month = viewDate.getMonth()
+  const firstDay = new Date(year, month, 1)
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const startOffset = firstDay.getDay()
+  const totalCells = Math.ceil((startOffset + daysInMonth) / 7) * 7
+  const today = new Date()
+
+  return Array.from({ length: totalCells }, (_, index) => {
+    const date = new Date(year, month, index - startOffset + 1)
+    const isCurrentMonth = date.getMonth() === month
+    const isToday = sameDate(date, today)
+
+    return { date, isCurrentMonth, isToday }
+  })
+}
+
+function getColorClassForStatus(status) {
+  switch (status) {
+    case 'Present':
+      return ''
+    case 'Absent':
+      return 'color-red'
+    case 'Late':
+      return 'color-yellow'
+    default:
+      return ''
+  }
+}
+
+function formatDateKey(date) {
+  return date.toISOString().slice(0, 10)
+}
+
+function AttendanceCalendarPage() {
+  const { personId } = useParams()
+  const [viewDate, setViewDate] = useState(new Date())
+  const [person, setPerson] = useState(null)
+
+  useEffect(() => {
+    const people = readPeople()
+    setPerson(getPersonById(people, personId))
+  }, [personId])
+
+  const calendarDays = useMemo(() => buildCalendarDays(viewDate), [viewDate])
+  const salaryEstimate = useMemo(() => estimateSalary(person, viewDate), [person, viewDate])
+
+  const goToPreviousMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))
+  }
+
+  const goToNextMonth = () => {
+    setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
+  }
+
+  const handleDayClick = (date) => {
+    if (!person) {
+      return
+    }
+
+    const dateKey = formatDateKey(date)
+    const nextStatus = person.attendance?.[dateKey] === 'Absent' ? '' : 'Absent'
+    const people = readPeople()
+    const nextPeople = saveAttendance(people, person.id, dateKey, nextStatus)
+    writePeople(nextPeople)
+    setPerson(getPersonById(nextPeople, personId))
+  }
+
+  return (
+    <section className="page">
+      <h2>{person?.name ?? ''} ({salaryEstimate.monthlySalary || 0})</h2>
+      <div className="salary-summary card">
+        <div className="salary-row">
+          <span>Working days</span>
+          <strong>{salaryEstimate.workingDays}</strong>
+        </div>
+        <div className="salary-row">
+          <span>Absent days</span>
+          <strong>{salaryEstimate.absentDays}</strong>
+        </div>
+        <div className="salary-row">
+          <span>Payable days</span>
+          <strong>{salaryEstimate.payableDays}</strong>
+        </div>
+        <div className="salary-row total">
+          <span>Estimated payout</span>
+          <strong>{salaryEstimate.estimate}</strong>
+        </div>
+      </div>
+
+      <div className="calendar-shell">
+        <div className="calendar-header">
+          <button type="button" className="ghost-button" onClick={goToPreviousMonth}>
+            Prev
+          </button>
+          <h3>
+            {viewDate.toLocaleDateString('en', { month: 'long', year: 'numeric' })}
+          </h3>
+          <button type="button" className="ghost-button" onClick={goToNextMonth}>
+            Next
+          </button>
+        </div>
+
+        <div className="weekday-row">
+          {weekDays.map((day) => (
+            <div key={day} className="weekday">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div className="calendar-grid">
+          {calendarDays.map(({ date, isCurrentMonth, isToday }) => {
+            const dateKey = formatDateKey(date)
+            const attendanceStatus = person?.attendance?.[dateKey] ?? ''
+            const colorClass = getColorClassForStatus(attendanceStatus)
+            const styleClass = isCurrentMonth ? '' : 'muted'
+            return (
+              <button
+                key={`${dateKey}`}
+                type="button"
+                className={`day-cell ${colorClass} ${styleClass} ${isToday ? 'today' : ''}`}
+                onClick={() => isCurrentMonth && handleDayClick(date)}
+                disabled={!isCurrentMonth}
+              >
+                <span className="day-number">{date.getDate()}</span>
+                {isCurrentMonth && attendanceStatus == "Absent" && (
+                  <span className="day-status">{attendanceStatus}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+export default AttendanceCalendarPage
