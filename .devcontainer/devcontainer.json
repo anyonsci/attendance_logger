@@ -1,0 +1,12 @@
+{
+  "name": "Attendance logger Project",
+  "customizations": {
+    "codespaces": {
+      "repositories": {
+        "anyonsci/attendance_logger_backend": {
+          "permissions": "write-all"
+        },
+      }
+    }
+  }
+}

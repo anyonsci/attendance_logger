@@ -1,0 +1,11 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../attendance_logger_backend"
+		}
+	],
+	"settings": {}
+}
