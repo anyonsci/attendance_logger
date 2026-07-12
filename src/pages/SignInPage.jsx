@@ -1,12 +1,21 @@
 import { GoogleLogin } from '@react-oauth/google';
 import { useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import api from '../api/client';
 
-const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://attendance-logger-backend-git-main-anyonscis-projects.vercel.app/api/auth/'
+const BACKEND_URL = '/auth';
 
 export default function SignInPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const storedToken = localStorage.getItem('auth_token') || localStorage.getItem('app_token')
+    if (storedToken) {
+      setError('')
+      navigate('/people', { replace: true })
+    }
+  }, [navigate])
 
   const handleSuccess = async (credentialResponse) => {
     const token = credentialResponse?.credential
@@ -16,19 +25,16 @@ export default function SignInPage() {
     }
 
     try {
-      const response = await fetch(BACKEND_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token }),
-      })
+      const response = await api.post(BACKEND_URL, { token })
+      const data = response.data
+      const backendToken = data?.token
 
-      if (!response.ok) {
-        const errorBody = await response.text()
-        throw new Error(errorBody || `Authentication failed with status ${response.status}`)
+      if (!backendToken) {
+        throw new Error('Backend did not return an authentication token.')
       }
 
-      const data = await response.json()
-      localStorage.setItem('auth_token', token)
+      localStorage.setItem('auth_token', backendToken)
+      localStorage.setItem('app_token', backendToken)
       localStorage.setItem('auth_user', JSON.stringify(data.user || {}))
       setError('')
       navigate('/people', { replace: true })
@@ -36,6 +42,7 @@ export default function SignInPage() {
       console.error('Backend auth failed', err)
       setError(err instanceof Error ? err.message : 'Unable to verify token with backend.')
       localStorage.removeItem('auth_token')
+      localStorage.removeItem('app_token')
       localStorage.removeItem('auth_user')
     }
   }
