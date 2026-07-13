@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { getPersonById, readPeople, updatePerson, writePeople } from '../data/storage'
 
 function PersonSettingsPage() {
   const { personId } = useParams()
   const [person, setPerson] = useState(null)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const people = readPeople()
@@ -24,6 +25,19 @@ function PersonSettingsPage() {
     const nextPeople = updatePerson(people, person.id, person)
     writePeople(nextPeople)
     setPerson({ ...person })
+    navigate('/people')
+  }
+
+  const handleDelete = () => {
+    if (!person) return
+
+    const ok = window.confirm(`Delete ${person.name}? This will remove all their attendance data.`)
+    if (!ok) return
+
+    const people = readPeople()
+    const nextPeople = people.filter((p) => p.id !== person.id)
+    writePeople(nextPeople)
+    navigate('/people')
   }
 
   if (!person) {
@@ -102,9 +116,19 @@ function PersonSettingsPage() {
           </select>
         </label>
 
-        <button type="button" style={{ marginTop: '1rem' }} onClick={handleSave}>
-          Save settings
-        </button>
+        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+          <button type="button" onClick={handleSave}>
+            Save settings
+          </button>
+
+          <button
+            type="button"
+            onClick={handleDelete}
+            style={{ background: '#e53935', color: 'white' }}
+          >
+            Delete person
+          </button>
+        </div>
       </div>
     </section>
   )

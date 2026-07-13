@@ -21,6 +21,7 @@ function PersonListPage() {
     const nextPeople = [newPerson, ...people]
     setPeople(nextPeople)
     writePeople(nextPeople)
+    navigate(`/people/${newPerson.id}/settings`)
   }
 
   const handleSetAttendance = (personId, status) => {

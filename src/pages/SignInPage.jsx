@@ -10,7 +10,7 @@ export default function SignInPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token') || localStorage.getItem('app_token')
+    const storedToken = localStorage.getItem('auth_token')
     if (storedToken) {
       setError('')
       navigate('/people', { replace: true })
@@ -34,7 +34,6 @@ export default function SignInPage() {
       }
 
       localStorage.setItem('auth_token', backendToken)
-      localStorage.setItem('app_token', backendToken)
       localStorage.setItem('auth_user', JSON.stringify(data.user || {}))
       setError('')
       navigate('/people', { replace: true })
@@ -42,7 +41,6 @@ export default function SignInPage() {
       console.error('Backend auth failed', err)
       setError(err instanceof Error ? err.message : 'Unable to verify token with backend.')
       localStorage.removeItem('auth_token')
-      localStorage.removeItem('app_token')
       localStorage.removeItem('auth_user')
     }
   }

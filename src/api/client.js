@@ -16,17 +16,15 @@ const api = axios.create({
 let isRefreshing = false;
 let refreshSubscribers = [];
 
-const getStoredToken = () => localStorage.getItem('app_token') || localStorage.getItem('auth_token');
+const getStoredToken = () => localStorage.getItem('auth_token');
 
 const persistAuthToken = (token) => {
   if (!token) return;
   localStorage.setItem('auth_token', token);
-  localStorage.setItem('app_token', token);
 };
 
 const clearAuthState = () => {
   localStorage.removeItem('auth_token');
-  localStorage.removeItem('app_token');
   localStorage.removeItem('auth_user');
 };
 
