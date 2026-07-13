@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
-import { getPersonById, readPeople, updatePerson, writePeople } from '../data/storage'
+import { deletePersonRemote, getPersonById, readPeople, refreshPeople, updatePersonRemote } from '../data/storage'
 
 function PersonSettingsPage() {
   const { personId } = useParams()
@@ -8,36 +8,49 @@ function PersonSettingsPage() {
   const navigate = useNavigate()
 
   useEffect(() => {
-    const people = readPeople()
-    setPerson(getPersonById(people, personId))
+    const cachedPeople = readPeople()
+    const cachedPerson = getPersonById(cachedPeople, personId)
+
+    if (cachedPerson) {
+      setPerson(cachedPerson)
+      return
+    }
+
+    refreshPeople().then((nextPeople) => {
+      setPerson(getPersonById(nextPeople, personId))
+    })
   }, [personId])
 
   const handleChange = (field, value) => {
     setPerson((current) => (current ? { ...current, [field]: value } : current))
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!person) {
       return
     }
 
-    const people = readPeople()
-    const nextPeople = updatePerson(people, person.id, person)
-    writePeople(nextPeople)
-    setPerson({ ...person })
-    navigate('/people')
+    try {
+      const updatedPerson = await updatePersonRemote(person.id, person)
+      setPerson(updatedPerson || { ...person })
+      navigate('/people')
+    } catch {
+      // Keep the UI responsive even if the backend request fails.
+    }
   }
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!person) return
 
     const ok = window.confirm(`Delete ${person.name}? This will remove all their attendance data.`)
     if (!ok) return
 
-    const people = readPeople()
-    const nextPeople = people.filter((p) => p.id !== person.id)
-    writePeople(nextPeople)
-    navigate('/people')
+    try {
+      await deletePersonRemote(person.id)
+      navigate('/people')
+    } catch {
+      // Keep the UI responsive even if the backend request fails.
+    }
   }
 
   if (!person) {

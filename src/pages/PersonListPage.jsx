@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createPerson, readPeople, saveAttendance, writePeople } from '../data/storage'
+import { createPersonRemote, readPeople, refreshPeople, saveAttendance, writePeople } from '../data/storage'
 
 function getTodayKey() {
   const today = new Date()
@@ -10,18 +10,38 @@ function getTodayKey() {
 function PersonListPage() {
   const [people, setPeople] = useState([])
   const [activeRipple, setActiveRipple] = useState(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
-    setPeople(readPeople())
+    const cachedPeople = readPeople()
+    setPeople(cachedPeople)
+
+    refreshPeople().then((nextPeople) => {
+      setPeople(nextPeople)
+    })
   }, [])
 
-  const handleAddPerson = () => {
-    const newPerson = createPerson()
-    const nextPeople = [newPerson, ...people]
-    setPeople(nextPeople)
-    writePeople(nextPeople)
-    navigate(`/people/${newPerson.id}/settings`)
+  const handleAddPerson = async () => {
+    try {
+      const newPerson = await createPersonRemote()
+      if (newPerson?.id) {
+        setPeople((current) => [newPerson, ...current.filter((person) => person.id !== newPerson.id)])
+        navigate(`/people/${newPerson.id}/settings`)
+      }
+    } catch {
+      // Keep the UI responsive even if the backend request fails.
+    }
+  }
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      const nextPeople = await refreshPeople()
+      setPeople(nextPeople)
+    } finally {
+      setIsRefreshing(false)
+    }
   }
 
   const handleSetAttendance = (personId, status) => {
@@ -60,9 +80,14 @@ function PersonListPage() {
     <section className="page">
       <h2>People</h2>
       <p>Manage each person and jump to their attendance view.</p>
-      <button type="button" onClick={handleAddPerson}>
-        Add person
-      </button>
+      <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <button type="button" onClick={handleAddPerson}>
+          Add person
+        </button>
+        <button type="button" onClick={handleRefresh} disabled={isRefreshing}>
+          {isRefreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
+      </div>
       <div className="card-grid" style={{ marginTop: '1rem' }}>
         {people.map((person) => (
           <article

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getPersonById, readPeople, saveAttendance, writePeople } from '../data/storage'
+import { getPersonById, readPeople, refreshPeople, saveAttendance, writePeople } from '../data/storage'
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -98,8 +98,17 @@ function AttendanceCalendarPage() {
   const [person, setPerson] = useState(null)
 
   useEffect(() => {
-    const people = readPeople()
-    setPerson(getPersonById(people, personId))
+    const cachedPeople = readPeople()
+    const cachedPerson = getPersonById(cachedPeople, personId)
+
+    if (cachedPerson) {
+      setPerson(cachedPerson)
+      return
+    }
+
+    refreshPeople().then((nextPeople) => {
+      setPerson(getPersonById(nextPeople, personId))
+    })
   }, [personId])
 
   const calendarDays = useMemo(() => buildCalendarDays(viewDate), [viewDate])
