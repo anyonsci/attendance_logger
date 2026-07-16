@@ -1,0 +1,19 @@
+{
+  "name": "Attendance Logger",
+  "short_name": "Attendance",
+  "description": "Track attendance events and review attendance history from your device.",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#2563eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/attendance_logger/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
