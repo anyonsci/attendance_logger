@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
-import { getPersonById, readPeople, refreshPeople, saveAttendance, writePeople } from '../data/storage'
+import { useParams, useNavigate } from 'react-router-dom'
+import {
+  deleteAttendanceRecordRemote,
+  getPersonById,
+  readPeople,
+  saveAttendanceRecordRemote,
+  writePeople,
+} from '../data/storage'
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -92,27 +98,44 @@ function formatDateKey(date) {
   return date.toISOString().slice(0, 10)
 }
 
+function areAttendancesEqual(left, right) {
+  const leftKeys = Object.keys(left || {})
+  const rightKeys = Object.keys(right || {})
+
+  if (leftKeys.length !== rightKeys.length) {
+    return false
+  }
+
+  return leftKeys.every((key) => left[key] === right[key])
+}
+
 function AttendanceCalendarPage() {
   const { personId } = useParams()
   const [viewDate, setViewDate] = useState(new Date())
   const [person, setPerson] = useState(null)
+  const [draftAttendance, setDraftAttendance] = useState({})
+  const [isSaving, setIsSaving] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const cachedPeople = readPeople()
     const cachedPerson = getPersonById(cachedPeople, personId)
+    const initialAttendance = cachedPerson?.attendance || {}
 
-    if (cachedPerson) {
-      setPerson(cachedPerson)
-      return
-    }
-
-    refreshPeople().then((nextPeople) => {
-      setPerson(getPersonById(nextPeople, personId))
-    })
+    setPerson(cachedPerson)
+    setDraftAttendance(initialAttendance)
   }, [personId])
 
   const calendarDays = useMemo(() => buildCalendarDays(viewDate), [viewDate])
-  const salaryEstimate = useMemo(() => estimateSalary(person, viewDate), [person, viewDate])
+  const draftPerson = useMemo(
+    () => ({ ...(person || {}), attendance: draftAttendance }),
+    [person, draftAttendance]
+  )
+  const salaryEstimate = useMemo(() => estimateSalary(draftPerson, viewDate), [draftPerson, viewDate])
+  const isDirty = useMemo(
+    () => !areAttendancesEqual(draftAttendance, person?.attendance || {}),
+    [draftAttendance, person]
+  )
 
   const goToPreviousMonth = () => {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() - 1, 1))
@@ -128,16 +151,84 @@ function AttendanceCalendarPage() {
     }
 
     const dateKey = formatDateKey(date)
-    const nextStatus = person.attendance?.[dateKey] === 'Absent' ? '' : 'Absent'
-    const people = readPeople()
-    const nextPeople = saveAttendance(people, person.id, dateKey, nextStatus)
-    writePeople(nextPeople)
-    setPerson(getPersonById(nextPeople, personId))
+    const nextStatus = draftAttendance[dateKey] === 'Absent' ? '' : 'Absent'
+
+    setDraftAttendance((current) => {
+      const nextDraft = { ...current }
+
+      if (nextStatus) {
+        nextDraft[dateKey] = nextStatus
+      } else {
+        delete nextDraft[dateKey]
+      }
+
+      return nextDraft
+    })
+  }
+
+  const handleSave = async () => {
+    if (!person || !isDirty) {
+      return
+    }
+
+    setIsSaving(true)
+
+    try {
+      const previousAttendance = person?.attendance || {}
+      const pendingPromises = []
+
+      Object.entries(previousAttendance).forEach(([dateKey, status]) => {
+        if (status === 'Absent' && !draftAttendance[dateKey]) {
+          pendingPromises.push(deleteAttendanceRecordRemote(person.id, dateKey))
+        }
+      })
+
+      Object.entries(draftAttendance).forEach(([dateKey, status]) => {
+        if (status === 'Absent' && previousAttendance[dateKey] !== status) {
+          pendingPromises.push(saveAttendanceRecordRemote(person.id, dateKey, status))
+        }
+      })
+
+      await Promise.all(pendingPromises)
+
+      const nextPeople = readPeople().map((entry) => {
+        if (entry.id !== person.id) {
+          return entry
+        }
+
+        return {
+          ...entry,
+          attendance: draftAttendance,
+        }
+      })
+
+      writePeople(nextPeople)
+      setPerson({ ...person, attendance: draftAttendance })
+      setDraftAttendance({ ...draftAttendance })
+      navigate(`/people`)
+    } catch {
+      // Keep the UI responsive even if the backend request fails.
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  const handleCancel = () => {
+    setDraftAttendance(person?.attendance || {})
+    navigate(`/people`)
   }
 
   return (
     <section className="page">
       <h2>{person?.name ?? ''} ({salaryEstimate.monthlySalary || 0})</h2>
+      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
+        <button type="button" onClick={handleSave} disabled={!isDirty || isSaving}>
+          {isSaving ? 'Saving…' : 'Save'}
+        </button>
+        <button type="button" className="ghost-button" onClick={handleCancel}>
+          Cancel
+        </button>
+      </div>
       <div className="salary-summary card">
         <div className="salary-row">
           <span>Working days</span>
@@ -181,7 +272,7 @@ function AttendanceCalendarPage() {
         <div className="calendar-grid">
           {calendarDays.map(({ date, isCurrentMonth, isToday }) => {
             const dateKey = formatDateKey(date)
-            const attendanceStatus = person?.attendance?.[dateKey] ?? ''
+            const attendanceStatus = draftAttendance[dateKey] ?? ''
             const colorClass = getColorClassForStatus(attendanceStatus)
             const styleClass = isCurrentMonth ? '' : 'muted'
             return (

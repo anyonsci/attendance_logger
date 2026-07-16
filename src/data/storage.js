@@ -54,24 +54,113 @@ function readPeople() {
   return readPeopleFromCache()
 }
 
+function normalizeAttendanceMap(attendanceMap = {}) {
+  return Object.entries(attendanceMap || {}).reduce((accumulator, [dateKey, status]) => {
+    if (dateKey && status === 'Absent') {
+      accumulator[dateKey] = status
+    }
+    return accumulator
+  }, {})
+}
+
+function mergeAttendanceRecords(person, attendanceRecords = []) {
+  const attendanceByDate = normalizeAttendanceMap(person?.attendance || {})
+
+  attendanceRecords.forEach((record) => {
+    if (record?.dateKey && record?.status === 'Absent') {
+      attendanceByDate[record.dateKey] = record.status
+    }
+  })
+
+  return {
+    ...(person || {}),
+    attendance: attendanceByDate,
+  }
+}
+
+async function getAttendanceRecordsRemote(personId = '') {
+  try {
+    const response = await api.get('/attendance', {
+      params: personId ? { personId } : {},
+    })
+
+    return Array.isArray(response?.data) ? response.data : []
+  } catch (error) {
+    console.error('Failed to load attendance records from backend.', error)
+    return []
+  }
+}
+
+async function saveAttendanceRecordRemote(personId, dateKey, status) {
+  if (!personId || !dateKey || status !== 'Absent') {
+    return null
+  }
+
+  try {
+    const response = await api.put('/attendance', {
+      personId,
+      dateKey,
+      status,
+    })
+
+    return response?.data || null
+  } catch (error) {
+    console.error('Failed to save attendance record on backend.', error)
+    throw error
+  }
+}
+
+async function deleteAttendanceRecordRemote(personId, dateKey) {
+  try {
+    const response = await api.delete('/attendance', {
+      data: { personId, dateKey },
+    })
+
+    return response?.data || null
+  } catch (error) {
+    console.error('Failed to delete attendance record on backend.', error)
+    throw error
+  }
+}
+
 async function refreshPeople() {
   if (typeof window === 'undefined') {
     return []
   }
 
   try {
-    const response = await api.get('/people')
-    const serverPeople = Array.isArray(response?.data) ? response.data : []
+    const [peopleResponse, attendanceResponse] = await Promise.all([
+      api.get('/people'),
+      getAttendanceRecordsRemote(),
+    ])
+
+    const serverPeople = Array.isArray(peopleResponse?.data) ? peopleResponse.data : []
     const cachedPeople = readPeopleFromCache()
     const cachedById = new Map(cachedPeople.map((person) => [person.id, person]))
+    const attendanceByPerson = new Map()
+
+    attendanceResponse.forEach((record) => {
+      if (!record?.personId) {
+        return
+      }
+
+      const nextRecords = attendanceByPerson.get(record.personId) || []
+      nextRecords.push(record)
+      attendanceByPerson.set(record.personId, nextRecords)
+    })
 
     const mergedPeople = serverPeople.map((person) => {
       const cachedPerson = cachedById.get(person.id)
-      return {
-        ...(cachedPerson || {}),
-        ...person,
-        attendance: cachedPerson?.attendance || {},
-      }
+      const backendAttendance = attendanceByPerson.get(person.id) || []
+      const mergedPerson = mergeAttendanceRecords(
+        {
+          ...(cachedPerson || {}),
+          ...person,
+        },
+        backendAttendance
+      )
+
+      return mergedPerson
     })
 
     writePeople(mergedPeople)
@@ -145,11 +234,15 @@ export {
   STORAGE_KEY,
   createPerson,
   createPersonRemote,
+  deleteAttendanceRecordRemote,
   deletePersonRemote,
+  getAttendanceRecordsRemote,
   getPersonById,
+  mergeAttendanceRecords,
   readPeople,
   refreshPeople,
   saveAttendance,
+  saveAttendanceRecordRemote,
   updatePerson,
   updatePersonRemote,
   writePeople,

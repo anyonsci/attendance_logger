@@ -1,6 +1,13 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { createPersonRemote, readPeople, refreshPeople, saveAttendance, writePeople } from '../data/storage'
+import {
+  createPersonRemote,
+  deleteAttendanceRecordRemote,
+  readPeople,
+  refreshPeople,
+  saveAttendanceRecordRemote,
+  writePeople,
+} from '../data/storage'
 
 function getTodayKey() {
   const today = new Date()
@@ -44,9 +51,37 @@ function PersonListPage() {
     }
   }
 
-  const handleSetAttendance = (personId, status) => {
+  const handleSetAttendance = async (personId, status) => {
     const dateKey = getTodayKey()
-    const nextPeople = saveAttendance(people, personId, dateKey, status)
+
+    try {
+      if (status === 'Absent') {
+        await saveAttendanceRecordRemote(personId, dateKey, 'Absent')
+      } else {
+        await deleteAttendanceRecordRemote(personId, dateKey)
+      }
+    } catch {
+      // Keep the UI responsive even if the backend request fails.
+    }
+
+    const nextPeople = people.map((person) => {
+      if (person.id !== personId) {
+        return person
+      }
+
+      const nextAttendance = { ...person.attendance }
+      if (status === 'Absent') {
+        nextAttendance[dateKey] = status
+      } else {
+        delete nextAttendance[dateKey]
+      }
+
+      return {
+        ...person,
+        attendance: nextAttendance,
+      }
+    })
+
     setPeople(nextPeople)
     writePeople(nextPeople)
   }
