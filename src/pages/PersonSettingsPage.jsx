@@ -39,6 +39,10 @@ function PersonSettingsPage() {
     }
   }
 
+  const handleCancel = () => {
+    navigate('/people')
+  }
+
   const handleDelete = async () => {
     if (!person) return
 
@@ -129,15 +133,22 @@ function PersonSettingsPage() {
           </select>
         </label>
 
-        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
-          <button type="button" onClick={handleSave}>
-            Save settings
-          </button>
+        <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+          {/* First Row: Save and Cancel */}
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <button type="button" onClick={handleSave} style={{ flex: 1 }}>
+              Save settings
+            </button>
+            <button type="button" onClick={handleCancel} style={{ flex: 1 }}>
+              Cancel
+            </button>
+          </div>
 
+          {/* Second Row: Delete (Full Width) */}
           <button
             type="button"
             onClick={handleDelete}
-            style={{ background: '#e53935', color: 'white' }}
+            style={{ background: '#e53935', color: 'white', width: '100%' }}
           >
             Delete person
           </button>

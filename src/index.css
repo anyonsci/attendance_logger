@@ -125,16 +125,12 @@ button:hover {
   cursor: pointer;
 }
 
-.status-button.present {
-  background: #16a34a;
-}
-
 .status-button.absent {
   background: #dc2626;
 }
 
-.card.tile-present {
-  background: rgba(22, 163, 74, 0.16);
+.status-button.blank {
+  background: rgba(148, 163, 184, 0.2);
 }
 
 .card.tile-absent {

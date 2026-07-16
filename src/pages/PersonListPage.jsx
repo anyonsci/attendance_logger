@@ -11,7 +11,7 @@ import {
 
 function getTodayKey() {
   const today = new Date()
-  return today.toISOString().slice(0, 10)
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().slice(0, 10)
 }
 
 function PersonListPage() {
@@ -24,7 +24,7 @@ function PersonListPage() {
     const cachedPeople = readPeople()
     setPeople(cachedPeople)
 
-    refreshPeople().then((nextPeople) => {
+    refreshPeople(true).then((nextPeople) => {
       setPeople(nextPeople)
     })
   }, [])
@@ -51,8 +51,11 @@ function PersonListPage() {
     }
   }
 
-  const handleSetAttendance = async (personId, status) => {
+  const toggleAttendance = async (personId) => {
     const dateKey = getTodayKey()
+    const person = people.find((p) => p.id === personId)
+    const currentStatus = person?.attendance?.[dateKey] || 'Present'
+    const status = currentStatus === 'Present' ? 'Absent' : 'Present'
 
     try {
       if (status === 'Absent') {
@@ -145,23 +148,13 @@ function PersonListPage() {
               <div className="action-group">
                 <button
                   type="button"
-                  className="status-button present"
+                  className={`status-button ${person.attendance?.[getTodayKey()] === 'Absent' ? 'absent' : 'blank'}`}
                   onClick={(event) => {
                     event.stopPropagation()
-                    handleSetAttendance(person.id, 'Present')
+                    toggleAttendance(person.id)
                   }}
                 >
-                  ✓
-                </button>
-                <button
-                  type="button"
-                  className="status-button absent"
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    handleSetAttendance(person.id, 'Absent')
-                  }}
-                >
-                  ✕
+                  A
                 </button>
                 <Link
                   to={`/people/${person.id}/settings`}

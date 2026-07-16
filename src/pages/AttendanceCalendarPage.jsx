@@ -285,7 +285,7 @@ function AttendanceCalendarPage() {
               >
                 <span className="day-number">{date.getDate()}</span>
                 {isCurrentMonth && attendanceStatus == "Absent" && (
-                  <span className="day-status">{attendanceStatus}</span>
+                  <span className="day-status">{attendanceStatus[0]}</span>
                 )}
               </button>
             )

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="Attendance Logger icon">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#2563eb" />
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="#0f172a" />
+  <rect x="30" y="30" width="196" height="196" rx="32" fill="url(#g)" opacity="0.95" />
+  <path d="M84 82h88v20H84zM84 118h88v20H84zM84 154h54v20H84z" fill="#f8fafc" />
+  <circle cx="182" cy="164" r="20" fill="#f8fafc" opacity="0.95" />
+  <path d="M182 148v16l10 10" fill="none" stroke="#2563eb" stroke-width="10" stroke-linecap="round" stroke-linejoin="round" />
+</svg>

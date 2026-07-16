@@ -123,7 +123,16 @@ async function deleteAttendanceRecordRemote(personId, dateKey) {
   }
 }
 
-async function refreshPeople() {
+async function refreshPeople(ifNeeded = false) {
+  const cachedPeople = readPeopleFromCache()
+  if (ifNeeded && cachedPeople.length > 0) {
+    const lastRefreshTime = window.localStorage.getItem('last_refresh_time')
+    // Skip refresh and return cached people if last refresh was within 1 day.
+    if (lastRefreshTime && Date.now() - parseInt(lastRefreshTime, 10) < 24 * 60 * 60 * 1000) {
+      return cachedPeople
+    }
+  }
+
   if (typeof window === 'undefined') {
     return []
   }
@@ -135,7 +144,6 @@ async function refreshPeople() {
     ])
 
     const serverPeople = Array.isArray(peopleResponse?.data) ? peopleResponse.data : []
-    const cachedPeople = readPeopleFromCache()
     const cachedById = new Map(cachedPeople.map((person) => [person.id, person]))
     const attendanceByPerson = new Map()
 
@@ -164,6 +172,7 @@ async function refreshPeople() {
     })
 
     writePeople(mergedPeople)
+    window.localStorage.setItem('last_refresh_time', Date.now().toString())
     return mergedPeople
   } catch (error) {
     console.error('Failed to refresh people from backend.', error)
