@@ -8,6 +8,7 @@ import {
   writePeople,
 } from '../data/storage'
 import NotesPage from './NotesPage'
+import { formatDateKey, formatMonthKey } from '../utils/dateUtils'
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -30,7 +31,7 @@ function estimateSalary(person, viewDate) {
   const allowedLeaves = Number(person?.allowedLeavesPerMonth || 0)
   const workingDays = getMonthWorkingDays(viewDate)
   const attendance = person?.attendance || {}
-  const monthPrefix = viewDate.toISOString().slice(0, 7)
+  const monthPrefix = formatMonthKey(viewDate)
 
   let absentDays = 0
   Object.keys(attendance).forEach((key) => {
@@ -95,9 +96,7 @@ function getColorClassForStatus(status) {
   }
 }
 
-function formatDateKey(date) {
-  return date.toISOString().slice(0, 10)
-}
+
 
 function areAttendancesEqual(left, right) {
   const leftKeys = Object.keys(left || {})
@@ -295,7 +294,7 @@ function AttendanceCalendarPage() {
       </div>
 
       <div style={{ marginTop: '1.5rem' }}>
-        <NotesPage personId={personId} />
+        <NotesPage personId={personId} month={formatMonthKey(viewDate)} />
       </div>
     </section>
   )

@@ -167,6 +167,8 @@ async function refreshPeople(ifNeeded = false) {
     })
 
     writePeople(mergedPeople)
+    const _ = await getNotesRemote()
+
     window.localStorage.setItem('last_refresh_time', Date.now().toString())
     return mergedPeople
   } catch (error) {
@@ -237,61 +239,47 @@ function saveAttendance(people, personId, dateKey, status) {
 }
 
 function readNotesFromCache(personId = '') {
-  if (typeof window === 'undefined') {
-    return []
-  }
+  if (typeof window === 'undefined') return []
 
   try {
-    const raw = window.localStorage.getItem(NOTES_STORAGE_KEY)
-    if (!raw) {
-      return []
+    const cache = JSON.parse(window.localStorage.getItem(NOTES_STORAGE_KEY) || '{}')
+
+    // 1. If personId is provided, return their notes array directly
+    if (personId) {
+      return Array.isArray(cache[personId]) ? cache[personId] : []
     }
 
-    const cache = JSON.parse(raw)
-    const key = personId || 'all'
-    if (Array.isArray(cache[key])) {
-      return cache[key]
-    }
-    if (Array.isArray(cache)) {
-      return personId ? cache.filter((n) => n.personId === personId) : cache
-    }
-    return []
+    // 2. Otherwise, flatten all arrays in the cache into a single array
+    return Object.values(cache).flatMap(notes => Array.isArray(notes) ? notes : [])
   } catch {
     return []
   }
 }
 
 function writeNotesToCache(personId = '', notes = []) {
-  if (typeof window === 'undefined') {
-    return
-  }
+  if (typeof window === 'undefined') return
 
   try {
-    const raw = window.localStorage.getItem(NOTES_STORAGE_KEY)
-    let cache = {}
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw)
-        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-          cache = parsed
-        }
-      } catch {}
+    // 1. If updating a specific person, merge into existing cache
+    if (personId) {
+      const raw = window.localStorage.getItem(NOTES_STORAGE_KEY)
+      const cache = JSON.parse(raw || '{}')
+      cache[personId] = notes
+
+      window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(cache))
+      return
     }
 
-    const key = personId || 'all'
-    cache[key] = Array.isArray(notes) ? notes : []
-    window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(cache))
+    // 2. If personId == '', rebuild and replace the full cache from the notes array
+    const fullCache = Object.groupBy(notes, (note) => note.personId)
+    
+    window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(fullCache))
   } catch (error) {
     console.error('Failed to write notes to cache.', error)
   }
 }
 
-async function getNotesRemote(personId = '', ifNeeded = false) {
-  const cachedNotes = readNotesFromCache(personId)
-  if (ifNeeded && cachedNotes.length > 0) {
-    return cachedNotes
-  }
-
+async function getNotesRemote(personId = '') {
   try {
     const response = await api.get('/notes', {
       params: personId ? { personId } : {},

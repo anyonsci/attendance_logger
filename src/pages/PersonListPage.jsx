@@ -8,11 +8,9 @@ import {
   saveAttendanceRecordRemote,
   writePeople,
 } from '../data/storage'
+import { formatDateKey } from '../utils/dateUtils'
 
-function getTodayKey() {
-  const today = new Date()
-  return new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString().slice(0, 10)
-}
+
 
 function PersonListPage() {
   const [people, setPeople] = useState([])
@@ -52,7 +50,7 @@ function PersonListPage() {
   }
 
   const toggleAttendance = async (personId) => {
-    const dateKey = getTodayKey()
+    const dateKey = formatDateKey()
     const person = people.find((p) => p.id === personId)
     const currentStatus = person?.attendance?.[dateKey] || 'Present'
     const status = currentStatus === 'Present' ? 'Absent' : 'Present'
@@ -130,7 +128,7 @@ function PersonListPage() {
         {people.map((person) => (
           <article
             key={person.id}
-            className={`card card-tile ${person.attendance?.[getTodayKey()] === 'Present' ? 'tile-present' : ''} ${person.attendance?.[getTodayKey()] === 'Absent' ? 'tile-absent' : ''}`}
+            className={`card card-tile ${person.attendance?.[formatDateKey()] === 'Present' ? 'tile-present' : ''} ${person.attendance?.[formatDateKey()] === 'Absent' ? 'tile-absent' : ''}`}
             role="button"
             tabIndex={0}
             onPointerDown={(event) => handleRowPointerDown(event, person.id)}
@@ -148,7 +146,7 @@ function PersonListPage() {
               <div className="action-group">
                 <button
                   type="button"
-                  className={`status-button ${person.attendance?.[getTodayKey()] === 'Absent' ? 'absent' : 'blank'}`}
+                  className={`status-button ${person.attendance?.[formatDateKey()] === 'Absent' ? 'absent' : 'blank'}`}
                   onClick={(event) => {
                     event.stopPropagation()
                     toggleAttendance(person.id)

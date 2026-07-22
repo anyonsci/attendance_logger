@@ -2,10 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { deleteNoteRemote, getNotesRemote, readNotesFromCache, saveNoteRemote } from '../data/storage'
 import ConfirmModal from '../components/ConfirmModal'
-
-function getTodayString() {
-  return new Date().toISOString().slice(0, 10)
-}
+import { formatDateKey } from '../utils/dateUtils'
 
 function formatDateDisplay(dateString) {
   if (!dateString) return ''
@@ -15,7 +12,7 @@ function formatDateDisplay(dateString) {
     : parsed.toLocaleDateString('en', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
-function NotesPage({ personId: propPersonId }) {
+function NotesPage({ personId: propPersonId, month }) {
   const params = useParams()
   const navigate = useNavigate()
   const personId = propPersonId || params.personId || ''
@@ -26,40 +23,21 @@ function NotesPage({ personId: propPersonId }) {
   const [deletingNoteId, setDeletingNoteId] = useState(null)
   const [isDeleting, setIsDeleting] = useState(false)
   const [formData, setFormData] = useState({
-    date: getTodayString(),
+    date: formatDateKey(),
     title: '',
     text: '',
   })
   const [isSaving, setIsSaving] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [selectedMonth, setSelectedMonth] = useState('')
 
   const fetchNotes = async () => {
-    const cached = readNotesFromCache(personId)
-    if (cached && cached.length > 0) {
-      setNotes(cached)
-      setIsLoading(false)
-    } else {
-      setIsLoading(true)
-    }
-
-    try {
-      const loadedNotes = await getNotesRemote(personId)
-      setNotes(loadedNotes)
-    } catch {
-      // Keep cached notes on error
-    } finally {
-      setIsLoading(false)
-    }
+    setNotes(readNotesFromCache(personId))
   }
-
-  useEffect(() => {
-    fetchNotes()
-  }, [personId])
 
   const handleOpenAddForm = () => {
     setEditingNoteId(null)
     setFormData({
-      date: getTodayString(),
+      date: formatDateKey(),
       title: '',
       text: '',
     })
@@ -69,7 +47,7 @@ function NotesPage({ personId: propPersonId }) {
   const handleEditClick = (note) => {
     setEditingNoteId(note._id || note.id)
     setFormData({
-      date: note.date || getTodayString(),
+      date: note.date || formatDateKey(),
       title: note.title || '',
       text: note.text || '',
     })
@@ -79,7 +57,7 @@ function NotesPage({ personId: propPersonId }) {
   const handleCloseForm = () => {
     setIsFormOpen(false)
     setEditingNoteId(null)
-    setFormData({ date: getTodayString(), title: '', text: '' })
+    setFormData({ date: formatDateKey(), title: '', text: '' })
   }
 
   const handleFormSubmit = async (e) => {
@@ -91,7 +69,7 @@ function NotesPage({ personId: propPersonId }) {
     setIsSaving(true)
     try {
       const payload = {
-        date: formData.date || getTodayString(),
+        date: formData.date || formatDateKey(),
         title: formData.title.trim(),
         text: formData.text.trim(),
         personId,
@@ -136,6 +114,7 @@ function NotesPage({ personId: propPersonId }) {
 
   // Header navigation when rendered as standalone route
   const isStandalonePage = !propPersonId
+  const filteredNotes = month ? notes.filter((note) => note.date && note.date.slice(0,7) === month) : notes
 
   return (
     <div className={isStandalonePage ? 'page' : 'notes-section'}>
@@ -216,48 +195,44 @@ function NotesPage({ personId: propPersonId }) {
 
       {/* Notes List */}
       <div className="notes-list" style={{ display: 'grid', gap: '0.85rem' }}>
-        {isLoading && notes.length === 0 ? (
-          <div className="card">
-            <p>Loading notes…</p>
-          </div>
-        ) : notes.length === 0 ? (
-          <div className="card">
-            <p style={{ margin: 0, color: '#94a3b8' }}>No notes yet.</p>
-          </div>
-        ) : (
-          notes.map((note) => {
-            const noteId = note._id || note.id
-            return (
-              <article
-                key={noteId}
-                className="card note-card"
-                onClick={() => handleEditClick(note)}
-                style={{ cursor: 'pointer' }}
-              >
-                <div className="note-header">
-                  <span className="note-date">{formatDateDisplay(note.date)}</span>
-                  <button
-                    type="button"
-                    className="delete-button"
-                    onClick={(e) => handleDeleteClick(e, noteId)}
-                  >
-                    Delete note
-                  </button>
-                </div>
+        {filteredNotes.length === 0 ? (
+            <div className="card">
+              <p style={{ margin: 0, color: '#94a3b8' }}>No notes yet.</p>
+            </div>
+          ) : (
+            filteredNotes.map((note) => {
+              const noteId = note._id || note.id
+              return (
+                <article
+                  key={noteId}
+                  className="card note-card"
+                  onClick={() => handleEditClick(note)}
+                  style={{ cursor: 'pointer' }}
+                >
+                  <div className="note-header">
+                    <span className="note-date">{formatDateDisplay(note.date)}</span>
+                    <button
+                      type="button"
+                      className="delete-button"
+                      onClick={(e) => handleDeleteClick(e, noteId)}
+                    >
+                      Delete note
+                    </button>
+                  </div>
 
-                {note.title && (
-                  <h4 style={{ margin: '0.35rem 0', color: '#f8fafc', fontSize: '1.05rem' }}>
-                    {note.title}
-                  </h4>
-                )}
+                  {note.title && (
+                    <h4 style={{ margin: '0.35rem 0', color: '#f8fafc', fontSize: '1.05rem' }}>
+                      {note.title}
+                    </h4>
+                  )}
 
-                <p style={{ margin: '0.35rem 0 0', color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                  {note.text}
-                </p>
-              </article>
-            )
-          })
-        )}
+                  <p style={{ margin: '0.35rem 0 0', color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
+                    {note.text}
+                  </p>
+                </article>
+              )
+            })
+          )}
       </div>
 
       <ConfirmModal
