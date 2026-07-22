@@ -1,69 +1,24 @@
 const CACHE_NAME = 'attendance-logger-cache-v2'
-const APP_SHELL = [
-  '/attendance_logger/',
-  '/attendance_logger/index.html',
-  '/attendance_logger/manifest.webmanifest',
-  '/attendance_logger/icon.svg',
-]
 
+// 1. Skip waiting immediately when installed
 self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) => cache.addAll(APP_SHELL))
-      .then(() => self.skipWaiting()),
-  )
+  self.skipWaiting()
 })
 
+// 2. Clear out all existing caches completely on activation
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches
-      .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE_NAME).map((key) => caches.delete(key))))
-      .then(() => self.clients.claim()),
+    caches.keys().then((keys) => {
+      return Promise.all(keys.map((key) => caches.delete(key)))
+    }).then(() => self.clients.claim())
   )
 })
 
+// 3. Network-Only Fetch Strategy (Bypass Service Worker Cache + Browser Cache)
 self.addEventListener('fetch', (event) => {
-  if (event.request.method !== 'GET') {
-    return
-  }
-
-  if (event.request.mode === 'navigate') {
-    event.respondWith(
-      fetch(event.request)
-        .then((networkResponse) => {
-          const responseClone = networkResponse.clone()
-
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone)
-          })
-
-          return networkResponse
-        })
-        .catch(() => caches.match('/attendance_logger/index.html')),
-    )
-
-    return
-  }
 
   event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        return cachedResponse
-      }
-
-      return fetch(event.request)
-        .then((networkResponse) => {
-          const responseClone = networkResponse.clone()
-
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseClone)
-          })
-
-          return networkResponse
-        })
-        .catch(() => caches.match('/attendance_logger/index.html'))
-    }),
+    // cache: 'reload' forces the browser to bypass its HTTP cache and fetch fresh from server
+    fetch(event.request, { cache: 'reload' })
   )
 })
