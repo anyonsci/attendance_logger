@@ -1,6 +1,7 @@
 import api from '../api/client'
 
 const STORAGE_KEY = 'attendance-logger-people'
+const NOTES_STORAGE_KEY = 'attendance-logger-notes'
 
 function readPeopleFromCache() {
   if (typeof window === 'undefined') {
@@ -54,30 +55,6 @@ function readPeople() {
   return readPeopleFromCache()
 }
 
-function normalizeAttendanceMap(attendanceMap = {}) {
-  return Object.entries(attendanceMap || {}).reduce((accumulator, [dateKey, status]) => {
-    if (dateKey && status === 'Absent') {
-      accumulator[dateKey] = status
-    }
-    return accumulator
-  }, {})
-}
-
-function mergeAttendanceRecords(person, attendanceRecords = []) {
-  const attendanceByDate = normalizeAttendanceMap(person?.attendance || {})
-
-  attendanceRecords.forEach((record) => {
-    if (record?.dateKey && record?.status === 'Absent') {
-      attendanceByDate[record.dateKey] = record.status
-    }
-  })
-
-  return {
-    ...(person || {}),
-    attendance: attendanceByDate,
-  }
-}
-
 async function getAttendanceRecordsRemote(personId = '') {
   try {
     const response = await api.get('/attendance', {
@@ -88,6 +65,21 @@ async function getAttendanceRecordsRemote(personId = '') {
   } catch (error) {
     console.error('Failed to load attendance records from backend.', error)
     return []
+  }
+}
+
+function replaceAttendanceRecords(person, attendanceRecords = []) {
+  const attendanceByDate = {}
+
+  attendanceRecords.forEach((record) => {
+    if (record?.dateKey && record?.status === 'Absent') {
+      attendanceByDate[record.dateKey] = record.status
+    }
+  })
+
+  return {
+    ...(person || {}),
+    attendance: attendanceByDate,
   }
 }
 
@@ -118,6 +110,9 @@ async function deleteAttendanceRecordRemote(personId, dateKey) {
 
     return response?.data || null
   } catch (error) {
+    if (error?.response?.status === 404) {
+      return { success: true }
+    }
     console.error('Failed to delete attendance record on backend.', error)
     throw error
   }
@@ -160,7 +155,7 @@ async function refreshPeople(ifNeeded = false) {
     const mergedPeople = serverPeople.map((person) => {
       const cachedPerson = cachedById.get(person.id)
       const backendAttendance = attendanceByPerson.get(person.id) || []
-      const mergedPerson = mergeAttendanceRecords(
+      const mergedPerson = replaceAttendanceRecords(
         {
           ...(cachedPerson || {}),
           ...person,
@@ -204,15 +199,17 @@ async function updatePersonRemote(personId, updates) {
 async function deletePersonRemote(personId) {
   try {
     await api.delete('/people', { data: { id: personId } })
-
-    const nextPeople = readPeopleFromCache().filter((person) => person.id !== personId)
-    writePeople(nextPeople)
-
-    return true
   } catch (error) {
-    console.error('Failed to delete person on backend.', error)
-    throw error
+    if (error?.response?.status !== 404) {
+      console.error('Failed to delete person on backend.', error)
+      throw error
+    }
   }
+
+  const nextPeople = readPeopleFromCache().filter((person) => person.id !== personId)
+  writePeople(nextPeople)
+
+  return true
 }
 
 function updatePerson(people, personId, updates) {
@@ -239,20 +236,168 @@ function saveAttendance(people, personId, dateKey, status) {
   })
 }
 
+function readNotesFromCache(personId = '') {
+  if (typeof window === 'undefined') {
+    return []
+  }
+
+  try {
+    const raw = window.localStorage.getItem(NOTES_STORAGE_KEY)
+    if (!raw) {
+      return []
+    }
+
+    const cache = JSON.parse(raw)
+    const key = personId || 'all'
+    if (Array.isArray(cache[key])) {
+      return cache[key]
+    }
+    if (Array.isArray(cache)) {
+      return personId ? cache.filter((n) => n.personId === personId) : cache
+    }
+    return []
+  } catch {
+    return []
+  }
+}
+
+function writeNotesToCache(personId = '', notes = []) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  try {
+    const raw = window.localStorage.getItem(NOTES_STORAGE_KEY)
+    let cache = {}
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          cache = parsed
+        }
+      } catch {}
+    }
+
+    const key = personId || 'all'
+    cache[key] = Array.isArray(notes) ? notes : []
+    window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(cache))
+  } catch (error) {
+    console.error('Failed to write notes to cache.', error)
+  }
+}
+
+async function getNotesRemote(personId = '', ifNeeded = false) {
+  const cachedNotes = readNotesFromCache(personId)
+  if (ifNeeded && cachedNotes.length > 0) {
+    return cachedNotes
+  }
+
+  try {
+    const response = await api.get('/notes', {
+      params: personId ? { personId } : {},
+    })
+    const loadedNotes = Array.isArray(response?.data) ? response.data : []
+    writeNotesToCache(personId, loadedNotes)
+    return loadedNotes
+  } catch (error) {
+    console.error('Failed to load notes from backend.', error)
+    return cachedNotes
+  }
+}
+
+async function saveNoteRemote(noteData) {
+  try {
+    const noteId = noteData.id || noteData._id
+    let response
+    if (noteId) {
+      response = await api.put('/notes', { ...noteData, id: noteId })
+    } else {
+      response = await api.post('/notes', noteData)
+    }
+
+    const savedNote = response?.data || null
+    if (savedNote) {
+      const personIdKey = savedNote.personId || noteData.personId || ''
+      const cached = readNotesFromCache(personIdKey)
+      const targetId = savedNote._id || savedNote.id || noteId
+      const index = cached.findIndex((n) => (n._id || n.id) === targetId)
+      let updated
+      if (index >= 0) {
+        updated = [...cached]
+        updated[index] = savedNote
+      } else {
+        updated = [savedNote, ...cached]
+      }
+      writeNotesToCache(personIdKey, updated)
+    }
+
+    return savedNote
+  } catch (error) {
+    console.error('Failed to save note on backend.', error)
+    throw error
+  }
+}
+
+async function deleteNoteRemote(noteId, personId = '') {
+  try {
+    const response = await api.delete('/notes', {
+      data: { id: noteId },
+    })
+
+    if (personId) {
+      const cached = readNotesFromCache(personId)
+      const updated = cached.filter((n) => (n._id || n.id) !== noteId)
+      writeNotesToCache(personId, updated)
+    } else {
+      try {
+        const raw = window.localStorage.getItem(NOTES_STORAGE_KEY)
+        if (raw) {
+          const cache = JSON.parse(raw)
+          for (const key in cache) {
+            if (Array.isArray(cache[key])) {
+              cache[key] = cache[key].filter((n) => (n._id || n.id) !== noteId)
+            }
+          }
+          window.localStorage.setItem(NOTES_STORAGE_KEY, JSON.stringify(cache))
+        }
+      } catch {}
+    }
+
+    return response?.data || null
+  } catch (error) {
+    if (error?.response?.status === 404) {
+      if (personId) {
+        const cached = readNotesFromCache(personId)
+        const updated = cached.filter((n) => (n._id || n.id) !== noteId)
+        writeNotesToCache(personId, updated)
+      }
+      return { success: true }
+    }
+    console.error('Failed to delete note on backend.', error)
+    throw error
+  }
+}
+
 export {
   STORAGE_KEY,
+  NOTES_STORAGE_KEY,
   createPerson,
   createPersonRemote,
   deleteAttendanceRecordRemote,
+  deleteNoteRemote,
   deletePersonRemote,
   getAttendanceRecordsRemote,
+  getNotesRemote,
   getPersonById,
-  mergeAttendanceRecords,
+  readNotesFromCache,
   readPeople,
   refreshPeople,
   saveAttendance,
   saveAttendanceRecordRemote,
+  saveNoteRemote,
   updatePerson,
   updatePersonRemote,
+  writeNotesToCache,
   writePeople,
 }
+

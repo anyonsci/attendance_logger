@@ -7,6 +7,7 @@ import {
   saveAttendanceRecordRemote,
   writePeople,
 } from '../data/storage'
+import NotesPage from './NotesPage'
 
 const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -291,6 +292,10 @@ function AttendanceCalendarPage() {
             )
           })}
         </div>
+      </div>
+
+      <div style={{ marginTop: '1.5rem' }}>
+        <NotesPage personId={personId} />
       </div>
     </section>
   )

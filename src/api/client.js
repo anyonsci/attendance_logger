@@ -61,6 +61,17 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
+    // If a DELETE request returns 404 Not Found, consider the delete action successful.
+    const method = originalRequest?.method?.toLowerCase();
+    if (method === 'delete' && status === 404) {
+      return Promise.resolve({
+        data: { success: true, message: 'Resource not found or already deleted' },
+        status: 200,
+        statusText: 'OK',
+        headers: error.response?.headers || {},
+        config: originalRequest,
+      });
+    }
 
     if (status === 401 && !originalRequest?._retry && !isAuthEndpoint(originalRequest?.url || '')) {
       if (isRefreshing) {

@@ -1,10 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { deletePersonRemote, getPersonById, readPeople, refreshPeople, updatePersonRemote } from '../data/storage'
+import ConfirmModal from '../components/ConfirmModal'
 
 function PersonSettingsPage() {
   const { personId } = useParams()
   const [person, setPerson] = useState(null)
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -43,17 +46,23 @@ function PersonSettingsPage() {
     navigate('/people')
   }
 
-  const handleDelete = async () => {
+  const handleDeleteClick = () => {
+    if (!person) return
+    setIsDeleteModalOpen(true)
+  }
+
+  const handleConfirmDelete = async () => {
     if (!person) return
 
-    const ok = window.confirm(`Delete ${person.name}? This will remove all their attendance data.`)
-    if (!ok) return
-
+    setIsDeleting(true)
     try {
       await deletePersonRemote(person.id)
+      setIsDeleteModalOpen(false)
       navigate('/people')
     } catch {
       // Keep the UI responsive even if the backend request fails.
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -147,13 +156,25 @@ function PersonSettingsPage() {
           {/* Second Row: Delete (Full Width) */}
           <button
             type="button"
-            onClick={handleDelete}
+            onClick={handleDeleteClick}
             style={{ background: '#e53935', color: 'white', width: '100%' }}
           >
             Delete person
           </button>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Delete Person"
+        message={`Are you sure you want to delete ${person.name}? This will remove all their attendance data.`}
+        confirmText="Delete Person"
+        cancelText="Cancel"
+        variant="danger"
+        isLoading={isDeleting}
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setIsDeleteModalOpen(false)}
+      />
     </section>
   )
 }
