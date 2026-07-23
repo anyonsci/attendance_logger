@@ -36,14 +36,14 @@ function PersonSettingsPage() {
     try {
       const updatedPerson = await updatePersonRemote(person.id, person)
       setPerson(updatedPerson || { ...person })
-      navigate('/people')
+      navigate('/people', { replace: true })
     } catch {
       // Keep the UI responsive even if the backend request fails.
     }
   }
 
   const handleCancel = () => {
-    navigate('/people')
+    navigate('/people', { replace: true })
   }
 
   const handleDeleteClick = () => {
@@ -58,7 +58,7 @@ function PersonSettingsPage() {
     try {
       await deletePersonRemote(person.id)
       setIsDeleteModalOpen(false)
-      navigate('/people')
+      navigate('/people', { replace: true })
     } catch {
       // Keep the UI responsive even if the backend request fails.
     } finally {

@@ -205,7 +205,7 @@ function AttendanceCalendarPage() {
       writePeople(nextPeople)
       setPerson({ ...person, attendance: draftAttendance })
       setDraftAttendance({ ...draftAttendance })
-      navigate(`/people`)
+      navigate('/people', { replace: true })
     } catch {
       // Keep the UI responsive even if the backend request fails.
     } finally {
@@ -215,7 +215,7 @@ function AttendanceCalendarPage() {
 
   const handleCancel = () => {
     setDraftAttendance(person?.attendance || {})
-    navigate(`/people`)
+    navigate('/people', { replace: true })
   }
 
   return (
