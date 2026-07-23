@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getWorkspaceId } from '../data/workspace/workspaceContext';
 
 const DEFAULT_BACKEND_URL = 'https://attendance-logger-backend-git-main-anyonscis-projects.vercel.app/api';
 
@@ -51,6 +52,11 @@ api.interceptors.request.use((config) => {
 
   if (shouldAttachToken) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  const workspaceId = getWorkspaceId();
+  if (workspaceId) {
+    config.params = { workspaceId, ...(config.params || {}) };
   }
 
   return config;
