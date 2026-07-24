@@ -36,14 +36,14 @@ function PersonSettingsPage() {
     try {
       const updatedPerson = await updatePersonRemote(person.id, person)
       setPerson(updatedPerson || { ...person })
-      navigate('/people', { replace: true })
+      navigate(-1)
     } catch {
       // Keep the UI responsive even if the backend request fails.
     }
   }
 
   const handleCancel = () => {
-    navigate('/people', { replace: true })
+    navigate(-1)
   }
 
   const handleDeleteClick = () => {
@@ -58,7 +58,7 @@ function PersonSettingsPage() {
     try {
       await deletePersonRemote(person.id)
       setIsDeleteModalOpen(false)
-      navigate('/people', { replace: true })
+      navigate(-1)
     } catch {
       // Keep the UI responsive even if the backend request fails.
     } finally {
@@ -142,24 +142,12 @@ function PersonSettingsPage() {
           </select>
         </label>
 
-        <div style={{ marginTop: '1rem', display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-          {/* First Row: Save and Cancel */}
-          <div style={{ display: 'flex', gap: '0.5rem' }}>
-            <button type="button" onClick={handleSave} style={{ flex: 1 }}>
-              Save settings
-            </button>
-            <button type="button" onClick={handleCancel} style={{ flex: 1 }}>
-              Cancel
-            </button>
-          </div>
-
-          {/* Second Row: Delete (Full Width) */}
-          <button
-            type="button"
-            onClick={handleDeleteClick}
-            style={{ background: '#e53935', color: 'white', width: '100%' }}
-          >
-            Delete person
+        <div style={{ marginTop: '1rem', display: 'flex', gap: '0.5rem' }}>
+          <button type="button" onClick={handleSave} style={{ flex: 1 }}>
+            Save settings
+          </button>
+          <button type="button" onClick={handleCancel} style={{ flex: 1 }}>
+            Cancel
           </button>
         </div>
       </div>

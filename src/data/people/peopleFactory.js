@@ -19,6 +19,7 @@ export function createPerson(overrides = {}) {
     reportTime: '09:00',
     duration: 8,
     durationUnit: 'hour',
+    workspaceId: '',
     attendance: {},
     ...overrides,
   }

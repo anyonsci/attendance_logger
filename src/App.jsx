@@ -4,6 +4,7 @@ import PersonSettingsPage from './pages/PersonSettingsPage'
 import AttendanceCalendarPage from './pages/AttendanceCalendarPage'
 import NotesPage from './pages/NotesPage'
 import SignInPage from './pages/SignInPage'
+import SettingsPage from './pages/SettingsPage'
 import { GoogleOAuthProvider } from '@react-oauth/google';
 
 function App() {
@@ -21,6 +22,7 @@ function App() {
               <Route path="/signin" element={<SignInPage />} />
               <Route path="/" element={<RequireAuth><PersonListPage /></RequireAuth>} />
               <Route path="/people" element={<RequireAuth><PersonListPage /></RequireAuth>} />
+              <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
               <Route path="/people/:personId/calendar" element={<RequireAuth><AttendanceCalendarPage /></RequireAuth>} />
               <Route path="/people/:personId/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
               <Route path="/people/:personId/settings" element={<RequireAuth><PersonSettingsPage /></RequireAuth>} />

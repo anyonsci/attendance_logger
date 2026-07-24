@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   deleteAttendanceRecordRemote,
@@ -115,6 +115,7 @@ function AttendanceCalendarPage() {
   const [person, setPerson] = useState(null)
   const [draftAttendance, setDraftAttendance] = useState({})
   const [isSaving, setIsSaving] = useState(false)
+  const [showPayoutModal, setShowPayoutModal] = useState(false)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -145,6 +146,72 @@ function AttendanceCalendarPage() {
     setViewDate(new Date(viewDate.getFullYear(), viewDate.getMonth() + 1, 1))
   }
 
+  // Ref to track latest draftAttendance & person for save operation
+  const stateRef = useRef({ person, draftAttendance, isDirty })
+  useEffect(() => {
+    stateRef.current = { person, draftAttendance, isDirty }
+  }, [person, draftAttendance, isDirty])
+
+  const performSave = useCallback(async () => {
+    const { person: currentPerson, draftAttendance: currentDraft, isDirty: dirty } = stateRef.current
+    if (!currentPerson || !dirty) return
+
+    setIsSaving(true)
+    try {
+      const previousAttendance = currentPerson?.attendance || {}
+      const pendingPromises = []
+
+      Object.entries(previousAttendance).forEach(([dateKey, status]) => {
+        if (status === 'Absent' && !currentDraft[dateKey]) {
+          pendingPromises.push(deleteAttendanceRecordRemote(currentPerson.id, dateKey))
+        }
+      })
+
+      Object.entries(currentDraft).forEach(([dateKey, status]) => {
+        if (status === 'Absent' && previousAttendance[dateKey] !== status) {
+          pendingPromises.push(saveAttendanceRecordRemote(currentPerson.id, dateKey, status))
+        }
+      })
+
+      await Promise.all(pendingPromises)
+
+      const nextPeople = readPeople().map((entry) => {
+        if (entry.id !== currentPerson.id) {
+          return entry
+        }
+        return {
+          ...entry,
+          attendance: currentDraft,
+        }
+      })
+
+      writePeople(nextPeople)
+      setPerson({ ...currentPerson, attendance: currentDraft })
+    } catch {
+      // Keep UI responsive
+    } finally {
+      setIsSaving(false)
+    }
+  }, [])
+
+  // 5-second debounce auto-save
+  useEffect(() => {
+    if (!isDirty) return
+
+    const timer = setTimeout(() => {
+      performSave()
+    }, 5000)
+
+    return () => clearTimeout(timer)
+  }, [draftAttendance, isDirty, performSave])
+
+  const handleBack = async () => {
+    if (isDirty) {
+      await performSave()
+    }
+    navigate(-1)
+  }
+
   const handleDayClick = (date) => {
     if (!person) {
       return
@@ -166,87 +233,89 @@ function AttendanceCalendarPage() {
     })
   }
 
-  const handleSave = async () => {
-    if (!person || !isDirty) {
-      return
-    }
-
-    setIsSaving(true)
-
-    try {
-      const previousAttendance = person?.attendance || {}
-      const pendingPromises = []
-
-      Object.entries(previousAttendance).forEach(([dateKey, status]) => {
-        if (status === 'Absent' && !draftAttendance[dateKey]) {
-          pendingPromises.push(deleteAttendanceRecordRemote(person.id, dateKey))
-        }
-      })
-
-      Object.entries(draftAttendance).forEach(([dateKey, status]) => {
-        if (status === 'Absent' && previousAttendance[dateKey] !== status) {
-          pendingPromises.push(saveAttendanceRecordRemote(person.id, dateKey, status))
-        }
-      })
-
-      await Promise.all(pendingPromises)
-
-      const nextPeople = readPeople().map((entry) => {
-        if (entry.id !== person.id) {
-          return entry
-        }
-
-        return {
-          ...entry,
-          attendance: draftAttendance,
-        }
-      })
-
-      writePeople(nextPeople)
-      setPerson({ ...person, attendance: draftAttendance })
-      setDraftAttendance({ ...draftAttendance })
-      navigate('/people', { replace: true })
-    } catch {
-      // Keep the UI responsive even if the backend request fails.
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  const handleCancel = () => {
-    setDraftAttendance(person?.attendance || {})
-    navigate('/people', { replace: true })
-  }
-
   return (
     <section className="page">
-      <h2>{person?.name ?? ''} ({salaryEstimate.monthlySalary || 0})</h2>
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem' }}>
-        <button type="button" onClick={handleSave} disabled={!isDirty || isSaving}>
-          {isSaving ? 'Saving…' : 'Save'}
-        </button>
-        <button type="button" className="ghost-button" onClick={handleCancel}>
-          Cancel
-        </button>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          <button
+            type="button"
+            className="ghost-button"
+            onClick={handleBack}
+            style={{ width: 'auto', padding: '0.5rem 1rem' }}
+          >
+            ← Back
+          </button>
+          <h2 style={{ margin: 0 }}>{person?.name ?? ''}</h2>
+        </div>
+        {isSaving && (
+          <span style={{ fontSize: '0.85rem', color: '#60a5fa', fontStyle: 'italic' }}>Saving…</span>
+        )}
       </div>
-      <div className="salary-summary card">
-        <div className="salary-row">
-          <span>Working days</span>
-          <strong>{salaryEstimate.workingDays}</strong>
-        </div>
-        <div className="salary-row">
-          <span>Absent days</span>
-          <strong>{salaryEstimate.absentDays}</strong>
-        </div>
-        <div className="salary-row">
-          <span>Payable days</span>
-          <strong>{salaryEstimate.payableDays}</strong>
-        </div>
-        <div className="salary-row total">
+
+      <div
+        className="salary-summary card"
+        onClick={() => setShowPayoutModal(true)}
+        style={{ cursor: 'pointer', marginBottom: '1rem' }}
+      >
+        <div className="salary-row total" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
           <span>Estimated payout</span>
           <strong>{salaryEstimate.estimate}</strong>
         </div>
       </div>
+
+      {showPayoutModal && (
+        <div className="modal-backdrop" onClick={() => setShowPayoutModal(false)}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={() => setShowPayoutModal(false)}
+            >
+              ✕
+            </button>
+            <h3 className="modal-title" style={{ marginBottom: '1rem' }}>Salary Payout Breakdown</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+              <div className="salary-row">
+                <span>Monthly Base Salary</span>
+                <strong>{salaryEstimate.monthlySalary}</strong>
+              </div>
+              <div className="salary-row">
+                <span>Working Days in Month</span>
+                <strong>{salaryEstimate.workingDays}</strong>
+              </div>
+              <div className="salary-row">
+                <span>Absent Days</span>
+                <strong>{salaryEstimate.absentDays}</strong>
+              </div>
+              <div className="salary-row">
+                <span>Allowed Paid Leaves</span>
+                <strong>{salaryEstimate.allowedLeaves}</strong>
+              </div>
+              <div className="salary-row">
+                <span>Unpaid Absent Days</span>
+                <strong>{salaryEstimate.unpaidAbsentDays}</strong>
+              </div>
+              <div className="salary-row">
+                <span>Payable Days</span>
+                <strong>{salaryEstimate.payableDays}</strong>
+              </div>
+              <div className="salary-row total" style={{ marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px solid rgba(148, 163, 184, 0.2)' }}>
+                <span>Estimated Payout</span>
+                <strong>{salaryEstimate.estimate}</strong>
+              </div>
+            </div>
+            <div style={{ marginTop: '1.25rem', display: 'flex', justifyContent: 'flex-end' }}>
+              <button
+                type="button"
+                className="modal-btn modal-btn-cancel"
+                onClick={() => setShowPayoutModal(false)}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="calendar-shell">
         <div className="calendar-header">
@@ -282,9 +351,10 @@ function AttendanceCalendarPage() {
                 className={`day-cell ${colorClass} ${styleClass} ${isToday ? 'today' : ''}`}
                 onClick={() => isCurrentMonth && handleDayClick(date)}
                 disabled={!isCurrentMonth}
+                style={{ cursor: isCurrentMonth ? 'pointer' : 'default' }}
               >
                 <span className="day-number">{date.getDate()}</span>
-                {isCurrentMonth && attendanceStatus == "Absent" && (
+                {isCurrentMonth && attendanceStatus === 'Absent' && (
                   <span className="day-status">{attendanceStatus[0]}</span>
                 )}
               </button>

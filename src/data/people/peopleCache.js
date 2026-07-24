@@ -1,9 +1,15 @@
 import { cacheRead, cacheWrite } from '../cache/localStorageCache'
 import { CACHE_KEYS } from '../cache/cacheKeys'
+import { getWorkspaceId } from '../workspace/workspaceContext'
 
 export function readPeopleFromCache() {
   const data = cacheRead(CACHE_KEYS.PEOPLE, [])
-  return Array.isArray(data) ? data : []
+  const list = Array.isArray(data) ? data : []
+  const activeWorkspaceId = getWorkspaceId()
+  if (!activeWorkspaceId) {
+    return list
+  }
+  return list.filter((p) => p.workspaceId === activeWorkspaceId)
 }
 
 export function writePeople(people) {

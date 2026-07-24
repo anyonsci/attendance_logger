@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import {
-  createPersonRemote,
   deleteAttendanceRecordRemote,
   readPeople,
   refreshPeople,
@@ -9,13 +8,19 @@ import {
   writePeople,
 } from '../data/storage'
 import { formatDateKey } from '../utils/dateUtils'
+import {
+  fetchWorkspaces,
+  getCachedWorkspaces,
+  getWorkspaceId,
+} from '../data/workspace/workspaceContext'
 
 
+
+import { PersonCard } from '../components/PersonCard'
 
 function PersonListPage() {
   const [people, setPeople] = useState([])
-  const [activeRipple, setActiveRipple] = useState(null)
-  const [isRefreshing, setIsRefreshing] = useState(false)
+
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -27,27 +32,9 @@ function PersonListPage() {
     })
   }, [])
 
-  const handleAddPerson = async () => {
-    try {
-      const newPerson = await createPersonRemote()
-      if (newPerson?.id) {
-        setPeople((current) => [newPerson, ...current.filter((person) => person.id !== newPerson.id)])
-        navigate(`/people/${newPerson.id}/settings`)
-      }
-    } catch {
-      // Keep the UI responsive even if the backend request fails.
-    }
-  }
 
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      const nextPeople = await refreshPeople()
-      setPeople(nextPeople)
-    } finally {
-      setIsRefreshing(false)
-    }
-  }
+
+  
 
   const toggleAttendance = async (personId) => {
     const dateKey = formatDateKey()
@@ -87,86 +74,94 @@ function PersonListPage() {
     writePeople(nextPeople)
   }
 
-  const handleRowPointerDown = (event, personId) => {
-    const target = event.currentTarget
-    const rect = target.getBoundingClientRect()
-    const size = Math.max(rect.width, rect.height)
-    const x = event.clientX - rect.left - size / 2
-    const y = event.clientY - rect.top - size / 2
-
-    setActiveRipple({
-      personId,
-      style: {
-        width: size,
-        height: size,
-        left: x,
-        top: y,
-      },
-      key: Date.now(),
-    })
-
-    setTimeout(() => setActiveRipple(null), 450)
-  }
-
   const handleRowClick = (personId) => {
     navigate(`/people/${personId}/calendar`)
   }
 
+  const [activeWorkspaceName, setActiveWorkspaceName] = useState('')
+
+  useEffect(() => {
+    const updateWorkspaceName = () => {
+      const activeId = getWorkspaceId()
+      setPeople(readPeople())
+      refreshPeople(true).then((nextPeople) => {
+        setPeople(nextPeople)
+      })
+
+      if (!activeId) {
+        setActiveWorkspaceName('')
+        return
+      }
+      const list = getCachedWorkspaces()
+      const found = list.find((ws) => ws.id === activeId)
+      if (found) {
+        setActiveWorkspaceName(found.name)
+      } else {
+        fetchWorkspaces().then((latestList) => {
+          const matched = latestList.find((ws) => ws.id === activeId)
+          if (matched) setActiveWorkspaceName(matched.name)
+        })
+      }
+    }
+
+    updateWorkspaceName()
+    window.addEventListener('workspaceChange', updateWorkspaceName)
+    return () => window.removeEventListener('workspaceChange', updateWorkspaceName)
+  }, [])
+
+  let userPicture = null
+  let userName = ''
+  try {
+    const userObj = JSON.parse(localStorage.getItem('auth_user') || '{}')
+    userPicture = userObj.picture || null
+    userName = userObj.name || userObj.email || 'User'
+  } catch {}
+
   return (
     <section className="page">
-      <h2>People</h2>
-      <p>Manage each person and jump to their attendance view.</p>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button type="button" onClick={handleAddPerson}>
-          Add person
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
+        <div>
+          <h2 style={{ margin: 0 }}>
+            {activeWorkspaceName || 'Attendance Logger'}
+          </h2>
+        </div>
+        <button
+          type="button"
+          onClick={() => navigate('/settings')}
+          style={{
+            width: '2.5rem',
+            height: '2.5rem',
+            padding: 0,
+            borderRadius: '50%',
+            overflow: 'hidden',
+            border: '2px solid rgba(255, 255, 255, 0.2)',
+            background: '#2563eb',
+            color: 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            fontWeight: '600',
+            fontSize: '1rem',
+          }}
+          title={userName}
+        >
+          {userPicture ? (
+            <img src={userPicture} alt={userName} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            userName.charAt(0).toUpperCase() || 'U'
+          )}
         </button>
-        <button type="button" onClick={handleRefresh} disabled={isRefreshing}>
-          {isRefreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </div>
+      </header>
+      
       <div className="card-grid" style={{ marginTop: '1rem' }}>
         {people.map((person) => (
-          <article
+          <PersonCard
             key={person.id}
-            className={`card card-tile ${person.attendance?.[formatDateKey()] === 'Present' ? 'tile-present' : ''} ${person.attendance?.[formatDateKey()] === 'Absent' ? 'tile-absent' : ''}`}
-            role="button"
-            tabIndex={0}
-            onPointerDown={(event) => handleRowPointerDown(event, person.id)}
+            person={person}
             onClick={() => handleRowClick(person.id)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                handleRowClick(person.id)
-              }
-            }}
-          >
-            <div className="card-row">
-              <div>
-                <h3>{person.name}</h3>
-              </div>
-              <div className="action-group">
-                <button
-                  type="button"
-                  className={`status-button ${person.attendance?.[formatDateKey()] === 'Absent' ? 'absent' : 'blank'}`}
-                  onClick={(event) => {
-                    event.stopPropagation()
-                    toggleAttendance(person.id)
-                  }}
-                >
-                  A
-                </button>
-                <Link
-                  to={`/people/${person.id}/settings`}
-                  className="settings-icon"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  ⚙
-                </Link>
-              </div>
-            </div>
-            {activeRipple?.personId === person.id && (
-              <span key={activeRipple.key} className="ripple" style={activeRipple.style} />
-            )}
-          </article>
+            onToggleAttendance={toggleAttendance}
+          />
         ))}
       </div>
     </section>
