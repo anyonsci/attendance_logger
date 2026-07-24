@@ -13,7 +13,7 @@ export default function SignInPage() {
     const storedToken = localStorage.getItem('auth_token')
     if (storedToken) {
       setError('')
-      navigate('/people', { replace: true })
+      navigate(-1)
     }
   }, [navigate])
 
@@ -36,7 +36,7 @@ export default function SignInPage() {
       localStorage.setItem('auth_token', backendToken)
       localStorage.setItem('auth_user', JSON.stringify(data.user || {}))
       setError('')
-      navigate('/people', { replace: true })
+      navigate(-1)
     } catch (err) {
       console.error('Backend auth failed', err)
       setError(err instanceof Error ? err.message : 'Unable to verify token with backend.')

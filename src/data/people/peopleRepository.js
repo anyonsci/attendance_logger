@@ -66,10 +66,16 @@ export async function refreshPeople(ifNeeded = false) {
   }
 }
 
+import { getWorkspaceId } from '../workspace/workspaceContext'
+
 export async function createPersonRemote(overrides = {}) {
   assertPermission('people', 'create')
   try {
-    const payload = createPerson(overrides)
+    const workspaceId = getWorkspaceId()
+    const payload = createPerson({
+      ...(workspaceId ? { workspaceId } : {}),
+      ...overrides,
+    })
     const response = await api.post('/people', payload)
     return response?.data || null
   } catch (error) {

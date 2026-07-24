@@ -114,126 +114,173 @@ function NotesPage({ personId: propPersonId, month }) {
 
   // Header navigation when rendered as standalone route
   const isStandalonePage = !propPersonId
-  const filteredNotes = month ? notes.filter((note) => note.date && note.date.slice(0,7) === month) : notes
+  const rawFilteredNotes = month ? notes.filter((note) => note.date && note.date.slice(0, 7) === month) : notes
+  const filteredNotes = [...rawFilteredNotes].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
 
   return (
     <div className={isStandalonePage ? 'page' : 'notes-section'}>
       {isStandalonePage && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <h2>Notes</h2>
-          <button type="button" className="ghost-button" onClick={() => navigate('/people')}>
+          <button type="button" className="ghost-button" onClick={() => navigate('/people')} style={{ width: 'auto' }}>
             Back
           </button>
         </div>
       )}
 
-      {/* Full width centered Add note button */}
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }}>
-        <button
-          type="button"
-          onClick={handleOpenAddForm}
-          style={{ width: '100%', maxWidth: 'none' }}
-        >
-          Add note
-        </button>
-      </div>
-
-      {/* Add / Edit Note Form */}
-      {isFormOpen && (
-        <div className="card note-form-card" style={{ marginBottom: '1.25rem' }}>
-          <h3 style={{ marginTop: 0, marginBottom: '0.85rem' }}>
-            {editingNoteId ? 'Edit note' : 'New note'}
-          </h3>
-          <form onSubmit={handleFormSubmit}>
-            <label>
-              <span>Date</span>
-              <input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-                required
-              />
-            </label>
-
-            <label>
-              <span>Title</span>
-              <input
-                type="text"
-                placeholder="Title"
-                value={formData.title}
-                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-              />
-            </label>
-
-            <label>
-              <span>Text</span>
-              <textarea
-                rows="4"
-                placeholder="Write your note here..."
-                value={formData.text}
-                onChange={(e) => setFormData({ ...formData, text: e.target.value })}
-                required
-              />
-            </label>
-
-            <div style={{ display: 'flex', gap: '0.5rem', marginTop: '1rem' }}>
-              <button type="submit" disabled={isSaving} style={{ flex: 1 }}>
-                {isSaving ? 'Saving…' : editingNoteId ? 'Save note' : 'Create note'}
-              </button>
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={handleCloseForm}
-                style={{ flex: 1 }}
-              >
-                Cancel
-              </button>
-            </div>
-          </form>
+      <div className="card" style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: filteredNotes.length > 0 ? '1rem' : 0 }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Notes</h3>
+          </div>
+          <button
+            type="button"
+            onClick={handleOpenAddForm}
+            style={{ width: 'auto', padding: '0.5rem 0.9rem', fontSize: '0.85rem' }}
+          >
+            + Add Note
+          </button>
         </div>
-      )}
 
-      {/* Notes List */}
-      <div className="notes-list" style={{ display: 'grid', gap: '0.85rem' }}>
+        {/* Notes List inside header card */}
         {filteredNotes.length === 0 ? (
-            <div className="card">
-              <p style={{ margin: 0, color: '#94a3b8' }}>No notes yet.</p>
-            </div>
-          ) : (
-            filteredNotes.map((note) => {
+          <p style={{ color: '#64748b', fontStyle: 'italic', margin: 0 }}>
+            No notes found.
+          </p>
+        ) : (
+          <div className="card-grid">
+            {filteredNotes.map((note) => {
               const noteId = note._id || note.id
               return (
                 <article
                   key={noteId}
-                  className="card note-card"
+                  className="card card-tile note-card"
                   onClick={() => handleEditClick(note)}
-                  style={{ cursor: 'pointer' }}
+                  style={{ cursor: 'pointer', background: 'rgba(15, 23, 42, 0.6)' }}
                 >
-                  <div className="note-header">
-                    <span className="note-date">{formatDateDisplay(note.date)}</span>
-                    <button
-                      type="button"
-                      className="delete-button"
-                      onClick={(e) => handleDeleteClick(e, noteId)}
-                    >
-                      Delete note
-                    </button>
+                  <div className="card-row">
+                    <div>
+                      <span className="note-date" style={{ fontSize: '0.8rem', color: '#94a3b8' }}>
+                        {formatDateDisplay(note.date)}
+                      </span>
+                    </div>
+                    {note.title && (
+                        <h3 style={{ margin: 0 }}>{note.title}</h3>
+                      )}
+                    <div className="action-group">
+                      <button
+                        type="button"
+                        className="delete-button"
+                        onClick={(e) => handleDeleteClick(e, noteId)}
+                      >
+                        Delete
+                      </button>
+                    </div>
                   </div>
-
-                  {note.title && (
-                    <h4 style={{ margin: '0.35rem 0', color: '#f8fafc', fontSize: '1.05rem' }}>
-                      {note.title}
-                    </h4>
+                  {note.text && (
+                    <p style={{ margin: '0.6rem 0 0', color: '#cbd5e1', whiteSpace: 'pre-wrap', fontSize: '0.925rem' }}>
+                      {note.text}
+                    </p>
                   )}
-
-                  <p style={{ margin: '0.35rem 0 0', color: '#cbd5e1', whiteSpace: 'pre-wrap' }}>
-                    {note.text}
-                  </p>
                 </article>
               )
-            })
-          )}
+            })}
+          </div>
+        )}
       </div>
+
+      {/* Add / Edit Note Popup Modal */}
+      {isFormOpen && (
+        <div className="modal-backdrop" onClick={handleCloseForm}>
+          <div className="modal-container card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '480px' }}>
+            <button
+              type="button"
+              className="modal-close-btn"
+              onClick={handleCloseForm}
+            >
+              ✕
+            </button>
+            <h3 className="modal-title" style={{ marginBottom: '1.25rem', color: '#f8fafc' }}>
+              {editingNoteId ? 'Edit Note' : 'New Note'}
+            </h3>
+            <form onSubmit={handleFormSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontWeight: '600', color: '#e2e8f0' }}>
+                <span>Date</span>
+                <input
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 0.85rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    color: '#f8fafc',
+                  }}
+                />
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontWeight: '600', color: '#e2e8f0' }}>
+                <span>Title</span>
+                <input
+                  type="text"
+                  placeholder="Title"
+                  value={formData.title}
+                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 0.85rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    color: '#f8fafc',
+                  }}
+                />
+              </label>
+
+              <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', fontWeight: '600', color: '#e2e8f0' }}>
+                <span>Text</span>
+                <textarea
+                  rows="4"
+                  placeholder="Write your note here..."
+                  value={formData.text}
+                  onChange={(e) => setFormData({ ...formData, text: e.target.value })}
+                  required
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 0.85rem',
+                    borderRadius: '10px',
+                    border: '1px solid rgba(148, 163, 184, 0.35)',
+                    background: 'rgba(15, 23, 42, 0.8)',
+                    color: '#f8fafc',
+                    resize: 'vertical',
+                  }}
+                />
+              </label>
+
+              <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', marginTop: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="ghost-button"
+                  onClick={handleCloseForm}
+                  style={{ width: 'auto', padding: '0.65rem 1.25rem' }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  style={{ width: 'auto', padding: '0.65rem 1.25rem' }}
+                >
+                  {isSaving ? 'Saving…' : editingNoteId ? 'Save Note' : 'Create Note'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <ConfirmModal
         isOpen={Boolean(deletingNoteId)}
