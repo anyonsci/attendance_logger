@@ -195,6 +195,8 @@ function AttendanceCalendarPage() {
     }
   }, [])
 
+  const isSalaried = useMemo(() => person?.salary != 0, [person]);
+
   // 5-second debounce auto-save
   useEffect(() => {
     if (!isDirty) return
@@ -253,16 +255,18 @@ function AttendanceCalendarPage() {
         )}
       </div>
 
-      <div
-        className="salary-summary card"
-        onClick={() => setShowPayoutModal(true)}
-        style={{ cursor: 'pointer', marginBottom: '1rem' }}
-      >
-        <div className="salary-row total" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
-          <span>Estimated payout</span>
-          <strong>{salaryEstimate.estimate}</strong>
+      {isSalaried && (
+        <div
+          className="salary-summary card"
+          onClick={() => setShowPayoutModal(true)}
+          style={{ cursor: 'pointer', marginBottom: '1rem' }}
+        >
+          <div className="salary-row total" style={{ marginTop: 0, paddingTop: 0, borderTop: 'none' }}>
+            <span>Estimated payout</span>
+            <strong>{salaryEstimate.estimate}</strong>
+          </div>
         </div>
-      </div>
+      )}
 
       {showPayoutModal && (
         <div className="modal-backdrop" onClick={() => setShowPayoutModal(false)}>

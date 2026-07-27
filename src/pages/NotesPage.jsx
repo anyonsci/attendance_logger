@@ -164,9 +164,6 @@ function NotesPage({ personId: propPersonId, month }) {
                         {formatDateDisplay(note.date)}
                       </span>
                     </div>
-                    {note.title && (
-                        <h3 style={{ margin: 0 }}>{note.title}</h3>
-                      )}
                     <div className="action-group">
                       <button
                         type="button"
@@ -177,6 +174,9 @@ function NotesPage({ personId: propPersonId, month }) {
                       </button>
                     </div>
                   </div>
+                  {note.title && (
+                    <h3 style={{ margin: 0 }}>{note.title}</h3>
+                  )}
                   {note.text && (
                     <p style={{ margin: '0.6rem 0 0', color: '#cbd5e1', whiteSpace: 'pre-wrap', fontSize: '0.925rem' }}>
                       {note.text}

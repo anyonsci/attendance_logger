@@ -1,5 +1,5 @@
 import { GoogleLogin } from '@react-oauth/google';
-import { useNavigate } from 'react-router-dom'
+import { replace, useNavigate } from 'react-router-dom'
 import { useEffect, useState } from 'react'
 import api from '../api/client';
 
@@ -13,7 +13,7 @@ export default function SignInPage() {
     const storedToken = localStorage.getItem('auth_token')
     if (storedToken) {
       setError('')
-      navigate(-1)
+      navigate('/', {replace: true})
     }
   }, [navigate])
 
@@ -36,7 +36,7 @@ export default function SignInPage() {
       localStorage.setItem('auth_token', backendToken)
       localStorage.setItem('auth_user', JSON.stringify(data.user || {}))
       setError('')
-      navigate(-1)
+      navigate('/', {replace: true})
     } catch (err) {
       console.error('Backend auth failed', err)
       setError(err instanceof Error ? err.message : 'Unable to verify token with backend.')

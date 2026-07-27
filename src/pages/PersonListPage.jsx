@@ -10,12 +10,12 @@ import {
   getWorkspaceId,
 } from '../data/workspace/workspaceContext'
 
-
-
 import { PersonCard } from '../components/PersonCard'
+import { SearchBar, useFuzzySearch } from '../components/SearchBar'
 
 function PersonListPage() {
   const [people, setPeople] = useState([])
+  const [searchTerm, setSearchTerm] = useState('')
 
   const navigate = useNavigate()
 
@@ -27,10 +27,6 @@ function PersonListPage() {
       setPeople(nextPeople)
     })
   }, [])
-
-
-
-  
 
   const handleAttendanceChange = (personId, nextAttendance) => {
     setPeople((prevPeople) =>
@@ -74,6 +70,12 @@ function PersonListPage() {
     window.addEventListener('workspaceChange', updateWorkspaceName)
     return () => window.removeEventListener('workspaceChange', updateWorkspaceName)
   }, [])
+
+  const searchKeys = ['name']
+  const fuzzyResults = useFuzzySearch(people, searchKeys, searchTerm)
+
+  const showSearchBar = people.length > 10
+  const filteredPeople = showSearchBar ? fuzzyResults : people
 
   let userPicture = null
   let userName = ''
@@ -119,9 +121,17 @@ function PersonListPage() {
           )}
         </button>
       </header>
-      
+
+      {showSearchBar && (
+        <SearchBar
+          value={searchTerm}
+          onChange={setSearchTerm}
+          placeholder="Search people..."
+        />
+      )}
+
       <div className="card-grid" style={{ marginTop: '1rem' }}>
-        {people.map((person) => (
+        {filteredPeople.map((person) => (
           <PersonCard
             key={person.id}
             person={person}
@@ -129,6 +139,11 @@ function PersonListPage() {
             onAttendanceChange={handleAttendanceChange}
           />
         ))}
+        {showSearchBar && filteredPeople.length === 0 && people.length > 0 && (
+          <div style={{ textAlign: 'center', padding: '2rem 1rem', color: '#94a3b8' }}>
+            No matching people found.
+          </div>
+        )}
       </div>
     </section>
   )
