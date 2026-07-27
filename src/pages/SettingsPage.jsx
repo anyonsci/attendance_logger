@@ -28,6 +28,20 @@ function SettingsPage() {
   const [createLoading, setCreateLoading] = useState(false)
   const [createError, setCreateError] = useState('')
 
+  let currentUserEmail = ''
+  try {
+    const userObj = JSON.parse(localStorage.getItem('auth_user') || '{}')
+    currentUserEmail = (userObj.email || '').trim().toLowerCase()
+  } catch {}
+
+  const activeWorkspace = workspaces.find((w) => w.id === selectedWorkspaceId)
+  const isOwner = Boolean(
+    activeWorkspace &&
+    activeWorkspace.ownerEmail &&
+    currentUserEmail &&
+    activeWorkspace.ownerEmail.trim().toLowerCase() === currentUserEmail
+  )
+
   useEffect(() => {
     setWorkspaces(getCachedWorkspaces())
     setLoading(true)
@@ -47,6 +61,8 @@ function SettingsPage() {
     try {
       const nextPeople = await refreshPeople()
       setPeople(nextPeople)
+      const list = await fetchWorkspaces()
+      setWorkspaces(list)
     } finally {
       setIsRefreshing(false)
     }
@@ -217,11 +233,23 @@ function SettingsPage() {
                   </option>
                 ))}
               </select>
-              <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '1rem' }}>
+              <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.5rem' }}>
                 <button type="button" onClick={handleRefresh} disabled={isRefreshing}>
                   {isRefreshing ? 'Refreshing…' : 'Refresh workspace'}
                 </button>
               </div>
+              {isOwner && (
+                <div style={{ display: 'flex', gap: '0.5rem', paddingTop: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="ghost-button"
+                    onClick={() => navigate('/workspace/settings')}
+                    style={{ width: '100%' }}
+                  >
+                    Edit Workspace
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

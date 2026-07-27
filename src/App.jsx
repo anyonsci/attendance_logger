@@ -5,7 +5,9 @@ import AttendanceCalendarPage from './pages/AttendanceCalendarPage'
 import NotesPage from './pages/NotesPage'
 import SignInPage from './pages/SignInPage'
 import SettingsPage from './pages/SettingsPage'
+import WorkspaceSettingsPage from './pages/WorkspaceSettingsPage'
 import { GoogleOAuthProvider } from '@react-oauth/google';
+import { ToastContainer } from './components/Toast';
 
 function App() {
   const RequireAuth = ({ children }) => {
@@ -23,11 +25,13 @@ function App() {
               <Route path="/" element={<RequireAuth><PersonListPage /></RequireAuth>} />
               <Route path="/people" element={<RequireAuth><PersonListPage /></RequireAuth>} />
               <Route path="/settings" element={<RequireAuth><SettingsPage /></RequireAuth>} />
+              <Route path="/workspace/settings" element={<RequireAuth><WorkspaceSettingsPage /></RequireAuth>} />
               <Route path="/people/:personId/calendar" element={<RequireAuth><AttendanceCalendarPage /></RequireAuth>} />
               <Route path="/people/:personId/notes" element={<RequireAuth><NotesPage /></RequireAuth>} />
               <Route path="/people/:personId/settings" element={<RequireAuth><PersonSettingsPage /></RequireAuth>} />
             </Routes>
           </main>
+          <ToastContainer />
         </div>
       </HashRouter>
     </GoogleOAuthProvider>

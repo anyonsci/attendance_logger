@@ -65,4 +65,11 @@ export async function createWorkspace(name) {
   await fetchWorkspaces()
   return response.data
 }
-
+export async function updateWorkspace(workspaceId, updates) {
+  const response = await api.put('/workspace', {
+    id: workspaceId,
+    ...updates,
+  })
+  await fetchWorkspaces()
+  return response.data
+}

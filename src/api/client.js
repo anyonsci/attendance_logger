@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { getWorkspaceId } from '../data/workspace/workspaceContext';
+import { showToast } from '../components/Toast';
 
 const DEFAULT_BACKEND_URL = 'https://attendance-logger-backend-git-main-anyonscis-projects.vercel.app/api';
 
@@ -118,6 +119,11 @@ api.interceptors.response.use(
       } finally {
         isRefreshing = false;
       }
+    }
+
+    if (status === 403) {
+      const errorMessage = error.response?.data?.error || 'Forbidden: You do not have permission for this action.';
+      showToast(errorMessage, 'error');
     }
 
     return Promise.reject(error);
