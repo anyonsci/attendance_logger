@@ -10,7 +10,7 @@ import { getNotesRemote } from '../notes/notesRepository'
 function replaceAttendanceRecords(person, attendanceRecords = []) {
   const attendanceByDate = {}
   attendanceRecords.forEach((record) => {
-    if (record?.dateKey && record?.status === 'Absent') {
+    if (record?.dateKey && ['Absent', 'Present'].includes(record?.status)) {
       attendanceByDate[record.dateKey] = record.status
     }
   })

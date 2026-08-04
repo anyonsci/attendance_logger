@@ -126,6 +126,17 @@ function PersonSettingsPage() {
         </label>
 
         <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+          <span>Default Attendance</span>
+          <select
+            value={person.defaultAttendance || 'Present'}
+            onChange={(event) => handleChange('defaultAttendance', event.target.value)}
+          >
+            <option value="Absent">Absent</option>
+            <option value="Present">Present</option>
+          </select>
+        </label>
+
+        <label style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
           <span>Report time</span>
           <input
             type="time"

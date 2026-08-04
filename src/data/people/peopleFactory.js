@@ -20,6 +20,7 @@ export function createPerson(overrides = {}) {
     duration: 8,
     durationUnit: 'hour',
     workspaceId: '',
+    defaultAttendance: 'Present',
     attendance: {},
     ...overrides,
   }

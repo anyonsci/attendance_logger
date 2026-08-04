@@ -16,7 +16,7 @@ export async function getAttendanceRecordsRemote(personId = '') {
 
 export async function saveAttendanceRecordRemote(personId, dateKey, status) {
   assertPermission('attendance', 'edit')
-  if (!personId || !dateKey || status !== 'Absent') return null
+  if (!personId || !dateKey || !['Absent', 'Present'].includes(status)) return null
   try {
     const response = await api.put('/attendance', { personId, dateKey, status })
     return response?.data || null

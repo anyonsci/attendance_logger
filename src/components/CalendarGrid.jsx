@@ -5,7 +5,7 @@ export const weekDays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 export function getColorClassForStatus(status) {
   switch (status) {
     case 'Present':
-      return ''
+      return 'color-green'
     case 'Absent':
       return 'color-red'
     case 'Late':
@@ -15,7 +15,7 @@ export function getColorClassForStatus(status) {
   }
 }
 
-export function CalendarGrid({ days, attendanceMap, onDayClick, showWeekday= true, isInteractive = true }) {
+export function CalendarGrid({ days, attendanceMap, defaultAttendance = 'Present', onDayClick, showWeekday= true, isInteractive = true }) {
   const today = new Date()
 
   return (
@@ -51,7 +51,7 @@ export function CalendarGrid({ days, attendanceMap, onDayClick, showWeekday= tru
               style={{ cursor: canClick ? 'pointer' : 'default' }}
             >
               <span className="day-number">{date.getDate()}</span>
-              {isCurrentMonth && attendanceStatus === 'Absent' && (
+              {isCurrentMonth && attendanceStatus && (
                 <span className="day-status">{attendanceStatus[0]}</span>
               )}
             </button>

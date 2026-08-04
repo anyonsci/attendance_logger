@@ -32,16 +32,21 @@ function estimateSalary(person, viewDate) {
   const allowedLeaves = Number(person?.allowedLeavesPerMonth || 0)
   const workingDays = getMonthWorkingDays(viewDate)
   const attendance = person?.attendance || {}
+  const defaultStatus = person?.defaultAttendance || 'Present'
   const monthPrefix = formatMonthKey(viewDate)
 
+  const year = viewDate.getFullYear()
+  const month = viewDate.getMonth()
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+
   let absentDays = 0
-  Object.keys(attendance).forEach((key) => {
-    if (key.startsWith(monthPrefix) && attendance[key] === 'Absent') {
-      const date = new Date(key)
-      const weekday = date.getDay()
+  for (let day = 1; day <= daysInMonth; day += 1) {
+    const dateKey = `${monthPrefix}-${String(day).padStart(2, '0')}`
+    const effectiveStatus = attendance[dateKey] || defaultStatus
+    if (effectiveStatus === 'Absent') {
       absentDays += 1
     }
-  })
+  }
 
   const unpaidAbsentDays = Math.max(0, absentDays - allowedLeaves)
   const payableDays = Math.max(0, workingDays - unpaidAbsentDays)
@@ -87,7 +92,7 @@ function buildCalendarDays(viewDate) {
 function getColorClassForStatus(status) {
   switch (status) {
     case 'Present':
-      return ''
+      return 'color-green'
     case 'Absent':
       return 'color-red'
     case 'Late':
@@ -163,13 +168,13 @@ function AttendanceCalendarPage() {
       const pendingPromises = []
 
       Object.entries(previousAttendance).forEach(([dateKey, status]) => {
-        if (status === 'Absent' && !currentDraft[dateKey]) {
+        if (status && !currentDraft[dateKey]) {
           pendingPromises.push(deleteAttendanceRecordRemote(currentPerson.id, dateKey))
         }
       })
 
       Object.entries(currentDraft).forEach(([dateKey, status]) => {
-        if (status === 'Absent' && previousAttendance[dateKey] !== status) {
+        if (status && previousAttendance[dateKey] !== status) {
           pendingPromises.push(saveAttendanceRecordRemote(currentPerson.id, dateKey, status))
         }
       })
@@ -220,16 +225,18 @@ function AttendanceCalendarPage() {
       return
     }
 
+    const defaultStatus = person.defaultAttendance || 'Present'
     const dateKey = formatDateKey(date)
-    const nextStatus = draftAttendance[dateKey] === 'Absent' ? '' : 'Absent'
+    const currentStatus = draftAttendance[dateKey] || defaultStatus
+    const nextStatus = currentStatus === 'Absent' ? 'Present' : 'Absent'
 
     setDraftAttendance((current) => {
       const nextDraft = { ...current }
 
-      if (nextStatus) {
-        nextDraft[dateKey] = nextStatus
-      } else {
+      if (nextStatus === defaultStatus) {
         delete nextDraft[dateKey]
+      } else {
+        nextDraft[dateKey] = nextStatus
       }
 
       return nextDraft
@@ -338,6 +345,7 @@ function AttendanceCalendarPage() {
         <CalendarGrid
           days={calendarDays}
           attendanceMap={draftAttendance}
+          defaultAttendance={person?.defaultAttendance || 'Present'}
           onDayClick={handleDayClick}
         />
       </div>

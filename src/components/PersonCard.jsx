@@ -70,13 +70,13 @@ export function PersonCard({ person, onClick, onDelete, onAttendanceChange, show
       const pendingPromises = []
 
       Object.entries(previousAttendance).forEach(([dateKey, status]) => {
-        if (status === 'Absent' && !currentDraft[dateKey]) {
+        if (status && !currentDraft[dateKey]) {
           pendingPromises.push(deleteAttendanceRecordRemote(currentPerson.id, dateKey))
         }
       })
 
       Object.entries(currentDraft).forEach(([dateKey, status]) => {
-        if (status === 'Absent' && previousAttendance[dateKey] !== status) {
+        if (status && previousAttendance[dateKey] !== status) {
           pendingPromises.push(saveAttendanceRecordRemote(currentPerson.id, dateKey, status))
         }
       })
@@ -131,18 +131,20 @@ export function PersonCard({ person, onClick, onDelete, onAttendanceChange, show
     }
   }, [])
 
+  const defaultStatus = person.defaultAttendance || 'Present'
   const handleDayClick = (date) => {
     if (!person) return
 
     const dateKey = formatDateKey(date)
-    const nextStatus = draftAttendance[dateKey] === 'Absent' ? '' : 'Absent'
+    const currentStatus = draftAttendance[dateKey] || defaultStatus
+    const nextStatus = currentStatus === 'Absent' ? 'Present' : 'Absent'
 
     setDraftAttendance((current) => {
       const nextDraft = { ...current }
-      if (nextStatus) {
-        nextDraft[dateKey] = nextStatus
-      } else {
+      if (nextStatus === defaultStatus) {
         delete nextDraft[dateKey]
+      } else {
+        nextDraft[dateKey] = nextStatus
       }
       return nextDraft
     })
@@ -156,8 +158,10 @@ export function PersonCard({ person, onClick, onDelete, onAttendanceChange, show
     }))
   }, [])
 
-  const isAbsentToday = draftAttendance[formatDateKey()] === 'Absent'
-  const isPresentToday = draftAttendance[formatDateKey()] === 'Present'
+  const todayKey = formatDateKey()
+  const todayStatus = draftAttendance[todayKey] || '';
+  const isAbsentToday = todayStatus === 'Absent'
+  const isPresentToday = todayStatus === 'Present'
 
   return (
     <article
@@ -206,6 +210,7 @@ export function PersonCard({ person, onClick, onDelete, onAttendanceChange, show
           <CalendarGrid
             days={weekDaysList}
             attendanceMap={draftAttendance}
+            defaultAttendance={person?.defaultAttendance || 'Present'}
             onDayClick={handleDayClick}
             showWeekday={false}
         />
