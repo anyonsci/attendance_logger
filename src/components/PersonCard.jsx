@@ -31,10 +31,8 @@ export function PersonCard({ person, onClick, onDelete, onAttendanceChange, show
   )
 
   useEffect(() => {
-    if (!isDirty) {
-      setDraftAttendance(person?.attendance || {})
-    }
-  }, [person?.attendance, isDirty])
+    setDraftAttendance(person?.attendance || {})
+  }, [person?.attendance])
 
   const handlePointerDown = (event) => {
     const target = event.currentTarget
