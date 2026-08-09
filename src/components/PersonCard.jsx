@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import ReactGA from 'react-ga4'
 import { formatDateKey, getCurrentWeekDays } from '../utils/dateUtils'
 import { CalendarGrid } from './CalendarGrid'
 import {
@@ -138,6 +139,12 @@ export function PersonCard({ person, onClick, onDelete, onAttendanceChange, show
     const dateKey = formatDateKey(date)
     const currentStatus = draftAttendance[dateKey] || defaultStatus
     const nextStatus = currentStatus === 'Absent' ? 'Present' : 'Absent'
+
+    ReactGA.event({
+      category: 'Attendance',
+      action: 'toggle_attendance',
+      label: `${person.name} (${dateKey}) -> ${nextStatus}`,
+    })
 
     setDraftAttendance((current) => {
       const nextDraft = { ...current }
