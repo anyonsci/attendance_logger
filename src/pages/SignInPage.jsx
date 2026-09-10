@@ -1,59 +1,58 @@
-import { GoogleLogin } from '@react-oauth/google';
-import { replace, useNavigate } from 'react-router-dom'
-import { useEffect, useState } from 'react'
-import api from '../api/client';
+import { useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useState } from 'react'
+import { supabase } from '../api/supabase'
 
-const BACKEND_URL = '/auth';
+const defaultRedirectUrl = `${window.location.origin}${import.meta.env.BASE_URL}`
+const authRedirectUrl = import.meta.env.VITE_SUPABASE_REDIRECT_URL || defaultRedirectUrl
 
 export default function SignInPage() {
   const navigate = useNavigate()
   const [error, setError] = useState('')
 
   useEffect(() => {
-    const storedToken = localStorage.getItem('auth_token')
-    if (storedToken) {
-      setError('')
-      navigate('/', {replace: true})
+    let mounted = true
+
+    const redirectIfAuthenticated = (currentSession) => {
+      if (mounted && currentSession) {
+        navigate('/', { replace: true })
+      }
+    }
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      redirectIfAuthenticated(session)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      redirectIfAuthenticated(session)
+    })
+
+    return () => {
+      mounted = false
+      subscription.unsubscribe()
     }
   }, [navigate])
 
-  const handleSuccess = async (credentialResponse) => {
-    const token = credentialResponse?.credential
-    if (!token) {
-      setError('Google sign-in did not return a credential.')
-      return
-    }
-
+  const handleSignIn = async () => {
     try {
-      const response = await api.post(BACKEND_URL, { token })
-      const data = response.data
-      const backendToken = data?.token
+      const { error: signInError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: authRedirectUrl,
+          scopes: 'openid email profile',
+        },
+      })
 
-      if (!backendToken) {
-        throw new Error('Backend did not return an authentication token.')
-      }
-
-      localStorage.setItem('auth_token', backendToken)
-      localStorage.setItem('auth_user', JSON.stringify(data.user || {}))
-      setError('')
-      navigate('/', {replace: true})
+      if (signInError) throw signInError
     } catch (err) {
-      console.error('Backend auth failed', err)
-      setError(err instanceof Error ? err.message : 'Unable to verify token with backend.')
-      localStorage.removeItem('auth_token')
-      localStorage.removeItem('auth_user')
+      console.error('Supabase auth failed', err)
+      setError(err instanceof Error ? err.message : 'Unable to sign in with Google.')
     }
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '2rem' }}>
-      <GoogleLogin
-        onSuccess={handleSuccess}
-        onError={() => {
-          setError('Google login failed')
-          console.log('Login Failed')
-        }}
-      />
+      <button type="button" onClick={handleSignIn}>Continue with Google</button>
       {error ? <p style={{ color: 'crimson', marginTop: '1rem' }}>{error}</p> : null}
     </div>
   )
