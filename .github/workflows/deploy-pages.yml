@@ -34,6 +34,7 @@ jobs:
       - name: Build frontend
         run: npm run build
         env:
+          VITE_BASE_PATH: /attendance_logger/
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
           VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
           VITE_SUPABASE_REDIRECT_URL: ${{ vars.VITE_SUPABASE_REDIRECT_URL }}

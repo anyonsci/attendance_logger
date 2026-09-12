@@ -10,7 +10,7 @@
   "orientation": "portrait",
   "icons": [
     {
-      "src": "/attendance_logger/icon.svg",
+      "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

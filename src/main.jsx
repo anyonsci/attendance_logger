@@ -9,8 +9,9 @@ const registerServiceWorker = async () => {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/attendance_logger/sw.js', {
-      scope: '/attendance_logger/',
+    const baseUrl = import.meta.env.BASE_URL
+    const registration = await navigator.serviceWorker.register(`${baseUrl}sw.js`, {
+      scope: baseUrl,
     })
 
     registration.addEventListener('updatefound', () => {

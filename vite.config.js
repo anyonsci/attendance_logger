@@ -25,6 +25,6 @@ function stampServiceWorker() {
 }
 
 export default defineConfig({
-  base: '/attendance_logger/',
+  base: process.env.VITE_BASE_PATH || '/',
   plugins: [react(), stampServiceWorker()],
 })
