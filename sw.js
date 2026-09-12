@@ -1,7 +1,8 @@
 // ⚠️ This CACHE_NAME is automatically replaced with a unique build timestamp
 //    by the stampServiceWorker Vite plugin on every `npm run build`.
 //    DO NOT manually edit the version string — it will be overwritten.
-const CACHE_NAME = 'attendance-logger-cache-v1789232143505'
+const CACHE_NAME = 'attendance-logger-cache-v1789232364203'
+const APP_BASE = new URL('./', self.registration.scope).pathname
 
 // 1. Cache the app shell on install for offline fallback
 self.addEventListener('install', (event) => {
@@ -9,8 +10,8 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll([
-        '/attendance_logger/',
-        '/attendance_logger/index.html',
+        APP_BASE,
+        `${APP_BASE}index.html`,
       ])
     })
   )
