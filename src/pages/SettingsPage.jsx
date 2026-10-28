@@ -10,7 +10,6 @@ import {
 import { createPersonRemote, deletePersonRemote, readPeopleFromCache, refreshPeople } from '../data/storage'
 import { PersonCard } from '../components/PersonCard'
 import ConfirmModal from '../components/ConfirmModal'
-import { supabase } from '../api/supabase'
 
 function SettingsPage() {
   const navigate = useNavigate()
@@ -138,8 +137,8 @@ function SettingsPage() {
     }
   }
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut()
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token')
     localStorage.removeItem('auth_user')
     navigate('/signin', { replace: true })
   }

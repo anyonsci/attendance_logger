@@ -35,9 +35,8 @@ jobs:
         run: npm run build
         env:
           VITE_BASE_PATH: /attendance_logger/
-          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL }}
-          VITE_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.VITE_SUPABASE_PUBLISHABLE_KEY }}
-          VITE_SUPABASE_REDIRECT_URL: ${{ vars.VITE_SUPABASE_REDIRECT_URL }}
+          VITE_AUTH_BACKEND_URL: ${{ vars.VITE_AUTH_BACKEND_URL || 'https://idp-server.vercel.app' }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
           VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL }}
 
       - name: Configure GitHub Pages

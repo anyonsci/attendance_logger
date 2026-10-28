@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { getWorkspaceId } from '../data/workspace/workspaceContext';
 import { showToast } from '../components/Toast';
-import { supabase } from './supabase';
 
 const DEFAULT_BACKEND_URL = 'https://attendance-logger-backend-git-main-anyonscis-projects.vercel.app/api';
 
@@ -16,15 +15,15 @@ const api = axios.create({
   withCredentials: true,
 });
 
-api.interceptors.request.use(async (config) => {
-  const { data: { session } } = await supabase.auth.getSession();
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('auth_token');
 
   config.headers = {
     ...(config.headers || {}),
   };
 
-  if (session?.access_token) {
-    config.headers.Authorization = `Bearer ${session.access_token}`;
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
 
   const workspaceId = getWorkspaceId();
@@ -37,7 +36,7 @@ api.interceptors.request.use(async (config) => {
 
 api.interceptors.response.use(
   (response) => response,
-  async (error) => {
+  (error) => {
     const originalRequest = error.config;
     const status = error.response?.status;
     // If a DELETE request returns 404 Not Found, consider the delete action successful.
@@ -53,8 +52,11 @@ api.interceptors.response.use(
     }
 
     if (status === 401 && !originalRequest?._retry) {
-      await supabase.auth.signOut();
-      if (typeof window !== 'undefined') window.location.hash = '#/signin';
+      localStorage.removeItem('auth_token');
+      localStorage.removeItem('auth_user');
+      if (typeof window !== 'undefined') {
+        window.location.hash = '#/signin';
+      }
     }
 
     if (status === 403) {

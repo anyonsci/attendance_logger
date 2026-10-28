@@ -1,5 +1,5 @@
 import { HashRouter, Route, Routes, Navigate, useLocation } from 'react-router-dom'
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import ReactGA from 'react-ga4'
 import PersonListPage from './pages/PersonListPage'
 import PersonSettingsPage from './pages/PersonSettingsPage'
@@ -8,11 +8,15 @@ import NotesPage from './pages/NotesPage'
 import SignInPage from './pages/SignInPage'
 import SettingsPage from './pages/SettingsPage'
 import WorkspaceSettingsPage from './pages/WorkspaceSettingsPage'
-import { ToastContainer } from './components/Toast';
-import { supabase } from './api/supabase';
+import { GoogleOAuthProvider } from '@react-oauth/google'
+import { ToastContainer } from './components/Toast'
 
 const GA_MEASUREMENT_ID = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-SS2XTNR948'
 ReactGA.initialize(GA_MEASUREMENT_ID)
+
+const GOOGLE_CLIENT_ID =
+  import.meta.env.VITE_GOOGLE_CLIENT_ID ||
+  '719964045968-cmh03lg080igf8f4lh8ng70mhhbqtt3q.apps.googleusercontent.com'
 
 function PageTracker() {
   const location = useLocation()
@@ -48,31 +52,14 @@ function PageTracker() {
 }
 
 function App() {
-  const [session, setSession] = useState(null)
-  const [authLoading, setAuthLoading] = useState(true)
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession)
-      setAuthLoading(false)
-    })
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession)
-      setAuthLoading(false)
-      localStorage.setItem('auth_user', JSON.stringify(nextSession?.user || {}))
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
-
   const RequireAuth = ({ children }) => {
-    if (authLoading) return <p>Loading...</p>
-    return session ? children : <Navigate to="/signin" replace />
+    const isAuthed = Boolean(localStorage.getItem('auth_token'))
+    return isAuthed ? children : <Navigate to="/signin" replace />
   }
 
   return (
-    <HashRouter basename="">
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <HashRouter basename="">
         <PageTracker />
         <div className="app-shell">
           <main className="content">
@@ -90,6 +77,7 @@ function App() {
           <ToastContainer />
         </div>
       </HashRouter>
+    </GoogleOAuthProvider>
   )
 }
 
