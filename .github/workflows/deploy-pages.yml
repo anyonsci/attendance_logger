@@ -36,7 +36,7 @@ jobs:
         env:
           VITE_BASE_PATH: /attendance_logger/
           VITE_AUTH_BACKEND_URL: ${{ vars.VITE_AUTH_BACKEND_URL || 'https://idp-server.vercel.app' }}
-          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID }}
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.VITE_GOOGLE_CLIENT_ID || '719964045968-cmh03lg080igf8f4lh8ng70mhhbqtt3q.apps.googleusercontent.com' }}
           VITE_BACKEND_URL: ${{ vars.VITE_BACKEND_URL }}
 
       - name: Configure GitHub Pages
